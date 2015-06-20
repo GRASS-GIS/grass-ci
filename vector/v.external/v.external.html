@@ -1,0 +1,109 @@
+<h2>DESCRIPTION</h2>
+
+<em>v.external</em> creates new vector map as a link to external OGR
+layer or PostGIS feature table. OGR (Simple Features Library) is part
+of the
+<a href="http://www.gdal.org">GDAL</a> library, so you need to install
+GDAL to use <em>v.external</em> for external OGR layers. Note that a
+PostGIS feature table can be linked also using built-in <em>GRASS-PostGIS
+data driver</em> (requires GRASS to be built with PostgreSQL support).
+
+<h3>Supported OGR vector formats</h3>
+
+To list supported OGR formats, type
+
+<div class="code"><pre>
+v.external -f
+</pre></div>
+
+For details see
+<a href="http://www.gdal.org/ogr/ogr_formats.html">OGR web site</a>.
+
+<h2>EXAMPLES</h2>
+
+<h3>ESRI Shapefile</h3>
+
+Assuming that 'test_shape.shp' is located in directory
+'/home/user/shape_data'.
+
+<div class="code"><pre>
+v.external input=/home/user/shape_data layer=test_shape output=grass_map 
+</pre></div>
+
+<h3>MapInfo files</h3>
+
+<div class="code"><pre>
+v.external input=./ layer=mapinfo_test output=grass_map
+</pre></div>
+
+<h3>SDTS files</h3>
+
+Note: you have to select the CATD file
+
+<div class="code"><pre>
+v.external input=CITXCATD.DDF output=cities
+</pre></div>
+
+<h3>TIGER files</h3>
+
+<div class="code"><pre>
+v.external input=input/2000/56015/ layer=CompleteChain,PIP output=t56015_all
+</pre></div>
+
+<h3>PostGIS layers</h3>
+
+PostGIS links are by default created by built-in PostGIS support,
+ie. using <em>GRASS-PostGIS data driver</em>. If the environment
+variable <tt>GRASS_VECTOR_OGR</tt> exists, or GRASS is compiled
+without PostgreSQL support then GRASS will use OGR-PostgreSQL driver
+for creating a link.
+
+<div class="code"><pre>
+v.external input="PG:host=localhost user=postgres dbname=postgis" layer=polymap
+</pre></div>
+
+<h2>NOTES</h2>
+
+The simple feature data model used by OGR (or PostGIS) is very
+different from the topological format used by GRASS. Instead of true
+topology, so called 'pseudo topology' is created for data linked by
+<em>v.external</em>. User should learn the difference between those
+two formats, because some modules working correctly with GRASS native
+data, can produce wrong results with input vector maps created
+by <em>v.external</em>.
+
+<p>See <em><a href="v.db.connect.html">v.db.connect</a></em> for an example of
+maintaining attributes in external DBMS in also writable mode.
+
+<h2>REFERENCES</h2>
+
+<a href="http://www.gdal.org/ogr/ogr__api_8h.html">OGR vector library C API</a> documentation
+
+<h2>SEE ALSO</h2>
+
+<em>
+  <a href="v.external.out.html">v.external.out</a>,
+  <a href="v.clean.html">v.clean</a>,
+  <a href="v.db.connect.html">v.db.connect</a>,
+  <a href="v.in.db.html">v.in.db</a>,
+  <a href="v.in.ogr.html">v.in.ogr</a>,
+  <a href="v.out.ogr.html">v.out.ogr</a>
+</em>
+
+<p>
+<a href="http://www.gdal.org/ogr/">OGR Library</a>
+<br>
+<a href="http://postgis.org/">PostGIS</a>
+
+<p>
+See
+also GRASS <a href="http://grasswiki.osgeo.org/wiki/Working_with_external_data_in_GRASS_7">user wiki page</a> for more examples.
+
+<h2>AUTHORS</h2>
+
+Radim Blazek, ITC-Irst, Trento, Italy
+<br>
+PostGIS support by Martin Landa, Czech Technical University in Prague, Czech Republic
+
+<p>
+<i>Last changed: $Date$</i>

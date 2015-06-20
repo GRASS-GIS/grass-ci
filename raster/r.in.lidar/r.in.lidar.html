@@ -1,0 +1,305 @@
+<h2>DESCRIPTION</h2>
+
+The <em>r.in.lidar</em> module loads and bins LAS LiDAR point clouds
+into a new raster map. The user may choose from a variety of statistical
+methods in creating the new raster.
+
+<p>
+Since the creation of raster maps depends on the computational 
+region settings (extent and resolution), as default the current 
+region extents and resolution are used for the import. When using 
+the <em>-e</em> flag along with the <em>resolution=value</em> 
+parameter, the region extents will be based on new dataset. It is therefore
+recommended to first use the <em>-s</em> flag to get the extents of the
+LiDAR point cloud to be imported, then adjust the current region extent
+and resolution accordingly, and only then proceed with the actual import.
+Another option is to automatically set the region extents based on the
+LAS dataset itself along with the desired raster resolution. See below
+for details.
+
+<p>
+<em>r.in.lidar</em> is designed for processing massive point cloud 
+datasets, for example raw LiDAR or sidescan sonar swath data. It has 
+been tested with large datasets (see below for memory management 
+notes).
+
+<p>
+Available statistics for populating the output raster map are:<br>
+<ul>
+<li>
+<table>
+<tr><td><em>n</em></td>        <td>number of points in cell</td></tr>
+<tr><td><em>min</em></td>      <td>minimum value of points in cell</td></tr>
+<tr><td><em>max</em></td>      <td>maximum value of points in cell</td></tr>
+<tr><td><em>range</em></td>    <td>range of points in cell</td></tr>
+<tr><td><em>sum</em></td>      <td>sum of points in cell</td></tr>
+<tr><td><em>mean</em></td>     <td>average value of points in cell</td></tr>
+<tr><td><em>stddev</em></td>   <td>standard deviation of points in cell</td></tr>
+<tr><td><em>variance</em></td> <td>variance of points in cell</td></tr>
+<tr><td><em>coeff_var</em></td><td>coefficient of variance of points in cell</td></tr>
+<tr><td><em>median</em></td>   <td>median value of points in cell</td></tr>
+<tr valign="baseline"><td><em>percentile</em>&nbsp;</td>
+   <td>p<sup><i>th</i></sup> percentile of points in cell</td></tr>
+<tr><td><em>skewness</em></td> <td>skewness of points in cell</td></tr>
+<tr><td><em>trimmean</em></td> <td>trimmed mean of points in cell</td></tr>
+</table><br>
+
+<li><em>Variance</em> and derivatives use the biased estimator (n). [subject to change]
+<li><em>Coefficient of variance</em> is given in percentage and defined as
+<tt>(stddev/mean)*100</tt>.
+</ul>
+<br>
+
+<h2>NOTES</h2>
+
+<h3>LAS file import preparations</h3>
+
+Since the <em>r.in.lidar</em> generates a raster map through binning 
+from the original LiDAR points, the target computational region 
+extent and resolution have to be determined. A typical workflow 
+would involve the examination of the LAS data's associated 
+documentation or the scan of the LAS data file with
+<em>r.in.lidar</em>'s <b>-s</b> (or <b>-g</b>) flag to find the input
+data's bounds.<br>
+Another option is to automatically set the region extents based on the
+LAS dataset extent (<b>-e</b> flag) along with the desired raster
+resolution using the <em>resolution</em> parameter.
+
+
+<h3>Memory use</h3>
+
+While the <b>input</b> file can be arbitrarily large, <em>r.in.lidar</em>
+will use a large amount of system memory (RAM) for large raster regions
+(&gt; 10000x10000 pixels).
+If the module refuses to start complaining that there isn't enough memory,
+use the <b>percent</b> parameter to run the module in several passes.
+In addition using a less precise map format (<tt>CELL</tt> [integer] or
+<tt>FCELL</tt> [floating point]) will use less memory than a <tt>DCELL</tt>
+[double precision floating point] <b>output</b> map. Methods such as <em>n,
+min, max, sum</em> will also use less memory, while <em>stddev, variance,
+and coeff_var</em> will use more.
+
+The aggregate functions <em>median, percentile, skewness</em> and
+<em>trimmed mean</em> will use even more memory and may not be appropriate
+for use with arbitrarily large input files<!-- without a small value for percent= -->.
+<!-- explained: memory use for regular stats will be based solely on region size,
+ but for the aggregate fns it will also depend on the number of data points. (?) -->
+<p>
+A LiDAR pulse can have multiple returns. The first return values can be 
+used to obtain a digital surface model (DSM) where e.g. canopy cover is 
+represented. The last return values can be used to obtain a digital 
+terrain model (DTM) where e.g. the forest floor instead of canopy 
+cover is represented. The <b>return_filter</b> option allows selecting one of 
+first, mid, or last returns.
+<p>
+LiDAR points can be already classified into standardized classes. For example,
+class number 2 represents ground (for other classes see LAS format specification
+in references). The <b>class_filter</b> option allows selecting one or more 
+classes, as numbers (integers) separated by comma.
+<p>
+The default map <b>type</b>=<tt>FCELL</tt> is intended as compromise between
+preserving data precision and limiting system resource consumption.
+
+<h3>Setting region bounds and resolution</h3>
+
+Using the <b>-s</b> scan flag, the extent of the input data (and thus
+point density) is printed. To check this is recommended before performing
+the full import. The <b>-g</b> shell style flag prints the extent suitable
+as command line parameters for <em>g.region</em>.<br>
+A simpler option is to automatically set the region extents based on the
+LAS dataset (<b>-e</b> flag) along with the target raster resolution using
+the <em>resolution</em> parameter. Also here it is recommended to verify
+and optimize the resulting region settings with <em>g.region</em> prior
+to importing the dataset.
+
+<p>
+For the output raster map, a <b>suitable resolution</b> can be found by
+dividing the number of input points by the area covered (this requires
+an iterative approach as outlined here):
+
+<!-- points.las is from California -->
+<div class="code"><pre>
+# print LAS metadata (Number of Points)
+r.in.lidar -p input=points.las
+#   Number of Point Records: 1287775
+
+# scan for LAS points cloud extent
+r.in.lidar -sg input=points.las output=dummy -o
+# n=2193507.740000 s=2190053.450000 e=6070237.920000 w=6066629.860000 b=-3.600000 t=906.000000
+
+# set computation region to this extent
+g.region n=2193507.740000 s=2190053.450000 e=6070237.920000 w=6066629.860000 -p
+
+# print resulting extent
+g.region -p
+#  rows:       3454
+#  cols:       3608
+
+# points_per_cell = n_points / (rows * cols)
+# Here: 1287775 / (3454 * 3608) = 0.1033359 LiDAR points/raster cell
+# As this is too low, we need to select a lower raster resolution
+
+g.region res=5 -ap
+#  rows:       692
+#  cols:       723
+#  Now: 1287775 / (692 * 723) = 2.573923 LiDAR points/raster cell
+
+# import as mean
+r.in.lidar input=points.las output=lidar_dem_mean method=mean -o
+
+# import as max
+r.in.lidar input=points.las output=lidar_dem_max method=max -o
+
+# import as p'th percentile of the values
+r.in.lidar input=points.las output=lidar_dem_percentile_95 \
+           method=percentile pth=95 -o
+</pre></div>
+
+<center>
+<img src="r_in_lidar_dem_mean3D.jpg" alt="Mean value DEM in perspective view"><br>
+<i>Mean value DEM in perspective view, imported from LAS file</i>
+</center>
+
+<p>
+Further hints: how to calculate number of LiDAR points/square meter:
+<div class="code"><pre>
+g.region -e
+  # Metric location:
+  # points_per_sq_m = n_points / (ns_extent * ew_extent)
+
+  # Lat/Lon location:
+  # points_per_sq_m = n_points / (ns_extent * ew_extent*cos(lat) * (1852*60)^2)
+</pre></div>
+
+<h3>Filtering</h3>
+
+Points falling outside the current region will be skipped. This includes
+points falling <em>exactly</em> on the southern region bound.
+(to capture those adjust the region with "<tt>g.region s=s-0.000001</tt>";
+see <em>g.region</em>)
+<p>Blank lines and comment lines starting with the hash symbol (<tt>#</tt>)
+will be skipped.
+
+<p>
+The <b>zrange</b> parameter may be used for filtering the input data by
+vertical extent. Example uses might include preparing multiple raster
+sections to be combined into a 3D raster array with <em>r.to.rast3</em>, or
+for filtering outliers on relatively flat terrain.
+
+<p>
+In varied terrain the user may find that <em>min</em> maps make for a good
+noise filter as most LIDAR noise is from premature hits. The <em>min</em> map
+may also be useful to find the underlying topography in a forested or urban
+environment if the cells are oversampled.
+
+<p>
+The user can use a combination of <em>r.in.lidar</em> <b>output</b> maps to create
+custom filters. e.g. use <em>r.mapcalc</em> to create a <tt>mean-(2*stddev)</tt>
+map. [In this example the user may want to include a lower bound filter in
+<em>r.mapcalc</em> to remove highly variable points (small <em>n</em>) or run
+<em>r.neighbors</em> to smooth the stddev map before further use.]
+
+
+<h2>EXAMPLE</h2>
+
+Import of a LAS file into an existing location/mapset (metric):
+
+<div class="code"><pre>
+# set the computational region automatically, resol. for binning is 5m
+r.in.lidar -e -o input=points.las resolution=5 output=lidar_dem_mean
+g.region raster=lidar_dem_mean -p
+r.univar lidar_dem_mean
+</pre></div>
+
+<p>
+Serpent Mound dataset:
+This example is analogous to the example used in the GRASS wiki page for
+<a href="http://grasswiki.osgeo.org/wiki/LIDAR#Import_LAS_as_raster_DEM">importing LAS as raster DEM</a>.
+<p>The sample LAS data are in the file "Serpent Mound Model LAS Data.las", 
+available at 
+<a href="http://www.appliedimagery.com/downloads/sampledata/Serpent%20Mound%20Model%20LAS%20Data.las">appliedimagery.com</a>
+
+<div class="code"><pre>
+# print LAS file info
+r.in.lidar -p input="Serpent Mound Model LAS Data.las"
+
+# using v.in.lidar to create a new location
+# create location with projection information of the LAS data
+v.in.lidar -i input="Serpent Mound Model LAS Data.las" location=Serpent_Mound
+
+# quit and restart GRASS in the newly created location "Serpent_Mound"
+
+# scan the extents of the LAS data
+r.in.lidar -sg input="Serpent Mound Model LAS Data.las"
+
+# set the region to the extents of the LAS data, align to resolution
+g.region n=4323641.57 s=4320942.61 w=289020.90 e=290106.02 res=1 -ap
+
+# import as raster DEM
+r.in.lidar input="Serpent Mound Model LAS Data.las" \
+           output=Serpent_Mound_Model_LAS_Data method=mean
+</pre></div>
+
+<h2>NOTES</h2>
+The typical file extensions for the LAS format are .las and .laz (compressed). 
+The compressed LAS (.laz) format can be imported only if libLAS has been compiled 
+with laszip support. It is also recommended to compile libLAS with GDAL, 
+needed to test for matching projections.
+
+<h2>TODO</h2>
+
+<ul>
+<li> Support for multiple map output from a single run.<br>
+     <tt>method=string[,string,...] output=name[,name,...]</tt>
+<!-- not really:
+<li> Merge with r.in.xyz.
+-->
+     <!-- Bob Covill has supplied patches for MBIO interface already -->
+</ul>
+
+<h2>KNOWN ISSUES</h2>
+
+<ul>
+<li> <em>n</em> map <tt>percent=100</tt> and <tt>percent=xx</tt> maps
+  differ slightly (point will fall above/below the segmentation line)
+  <br>Investigate with "<tt>r.mapcalc diff = bin_n.100 - bin_n.33</tt>" etc.
+  <br>Cause unknown.
+
+<li> "<tt>nan</tt>" can leak into <em>coeff_var</em> maps.
+  <br>Cause unknown. Possible work-around: "<tt>r.null setnull=nan</tt>"
+<!-- Another method:  r.mapcalc 'No_nan = if(map == map, map, null() )' -->
+</ul>
+
+If you encounter any problems (or solutions!) please contact the GRASS
+Development Team.
+
+<h2>SEE ALSO</h2>
+
+<em>
+<a href="g.region.html">g.region</a>,
+<a href="r.in.xyz.html">r.in.xyz</a>,
+<a href="r.mapcalc.html">r.mapcalc</a>,
+<a href="r.univar.html">r.univar</a>,
+<a href="v.in.lidar.html">v.in.lidar</a>
+<br>
+<a href="v.lidar.correction.html">v.lidar.correction</a>,
+<a href="v.lidar.edgedetection.html">v.lidar.edgedetection</a>,
+<a href="v.lidar.growing.html">v.lidar.growing</a>,
+<a href="v.outlier.html">v.outlier</a>,
+<a href="v.surf.bspline.html">v.surf.bspline</a>
+</em>
+
+<h2>REFERENCES</h2>
+
+<a href="http://www.asprs.org/Committee-General/LASer-LAS-File-Format-Exchange-Activities.html">
+ASPRS LAS format</a><br>
+<a href="http://www.liblas.org/">LAS library</a> <br>
+<a href="http://test.liblas.org/doxygen/liblas_8h.htm">LAS library C API</a> documentation
+
+<h2>AUTHORS</h2>
+
+Markus Metz<br>
+based on r.in.xyz by Hamish Bowman and Volker Wichmann<br>
+
+<br>
+<p><i>Last changed: $Date$</i>

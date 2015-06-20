@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+############################################################################
+#
+# MODULE:    g.gui.tplot.py
+# AUTHOR(S): Luca Delucchi
+# PURPOSE:   Temporal Plot Tool is a wxGUI component (based on matplotlib)
+#            the user to see in a plot the values of one or more temporal
+#            datasets for a queried point defined by a coordinate pair.
+# COPYRIGHT: (C) 2014 by Luca Delucchi, and the GRASS Development Team
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+############################################################################
+
+#%module
+#% description: Allows the user to see in a plot the values of one or more temporal datasets for a queried point defined by a coordinate pair.
+#% keyword: general
+#% keyword: GUI
+#% keyword: temporal
+#%end
+#%option G_OPT_STDS_INPUTS
+#% required: no
+#%end
+#%option G_OPT_M_COORDS
+#% required: no
+#%end
+#%option G_OPT_F_OUTPUT
+#% required: no
+#% label: Name for output file
+#% description: Add extension to specify format (.png, .pdf, .svg)
+#%end
+#%option
+#% key: dpi
+#% type: integer
+#% label: The DPI for output image
+#% description: To use only with output parameter
+#% required: no
+#%end
+
+import grass.script as gscript
+
+
+def main():
+    options, flags = gscript.parser()
+
+    import wx
+    from core.utils import _
+    try:
+        from tplot.frame import TplotFrame
+    except ImportError as e:
+        gscript.fatal(e.message)
+
+    datasets = options['inputs'].strip().split(',')
+    datasets = [data for data in datasets if data]
+    coords = options['coordinates'].strip().split(',')
+    output = options['output']
+    dpi = options['dpi']
+    dpi = int(dpi) if dpi else None
+    if dpi and not output:
+        gscript.warning(
+            _("No output filename set, so DPI option will not used"))
+
+    app = wx.App()
+    frame = TplotFrame(None)
+    frame.SetDatasets(datasets, coords, output, dpi)
+    if output:
+        return
+
+    frame.Show()
+    app.MainLoop()
+
+
+if __name__ == '__main__':
+    main()

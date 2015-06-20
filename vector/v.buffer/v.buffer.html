@@ -1,0 +1,108 @@
+<h2>DESCRIPTION</h2>
+
+<em>v.buffer</em> creates a buffer around features of
+given <b>type</b>, which have a category in the
+given <b>layer</b>. The <b>tolerance</b> controls the number of vector
+segments being generated (the smaller the value, the more vector
+segments are generated).
+
+<h2>NOTES</h2>
+
+Internal buffers for areas can be generated with negative distance 
+values ("inward buffer" or "negative buffer").
+<p>
+Categories and attributes can be transferred with the <b>t</b> flag. 
+The resulting buffer areas can have multiple categories, and multiple 
+buffer areas can have the same category. The buffer for the input 
+feature with category X can thus be retrieved by selecting all buffer 
+areas with category X (see example below).
+
+<p>
+Buffers for lines and areas are generated using the algorithms from
+the GEOS library.
+
+<!-- built-in buffer algorithm no longer desired, we use GEOS:
+If GRASS is not compiled with GEOS support or environmental
+variable <tt>GRASS_VECTOR_BUFFER</tt> is defined, then GRASS generates
+buffers using built-in buffering algorithm (which is still buggy for
+some input data).
+-->
+
+<h2>EXAMPLES</h2>
+
+All examples are based on the North Carolina sample dataset.
+
+<h3>Buffer around input lines</h3>
+
+<div class="code"><pre>
+v.buffer input=roadsmajor output=roadsmajor_buffer type=line distance=100
+</pre></div>
+
+<center>
+<img src="v_buffer_lines.png" border="1"><br>
+Buffer of 100m along the "roadsmajor" lines (map subset, original center line
+shown in black)
+</center>
+
+<h3>Circles around input points</h3>
+
+<div class="code"><pre>
+v.buffer input=hospitals output=hospitals_circled type=point distance=2000 
+</pre></div>
+
+<center>
+<img src="v_buffer_points.png" border="1"><br>
+Buffer of 2000m around the "hospitals" points (map subset, original points
+shown in black, new area centroids in red)
+</center>
+
+<h3>Circles around input points with attribute transfer</h3>
+
+<div class="code"><pre>
+v.buffer input=hospitals output=hospitals_circled type=point distance=1000 -t
+
+# display buffer around hospital with category 36,
+# this buffer is composed of several areas:
+d.vect map=hospitals_circled type=area layer=1 cats=36
+# extract this buffer, dissolving boundaries
+v.extract in=hospitals_circled output=hospital_36_circled layer=1 cats=36 -d
+</pre></div>
+
+<h3>Buffer around input areas</h3>
+
+<div class="code"><pre>
+v.buffer input=lakes output=lakes_buffer type=area distance=100
+</pre></div>
+
+<center>
+<img src="v_buffer_areas.png" border="1"><br>
+Buffer of 100m around the "lakes" polygons (map subset, original areas
+shown in black)
+</center>
+
+<h2>REFERENCE</h2>
+
+<ul>
+<li><a href="http://trac.osgeo.org/geos">GEOS Library</a></li>
+</ul>
+
+<h2>SEE ALSO</h2>
+
+<em>
+<a href="r.buffer.html">r.buffer</a>,
+<a href="v.parallel.html">v.parallel</a>,
+<a href="v.extract.html">v.extract</a>,
+<a href="v.type.html">v.type</a>,
+<a href="v.patch.html">v.patch</a>,
+<a href="v.db.connect.html">v.db.connect</a>
+</em>
+
+<h2>AUTHORS</h2>
+
+Radim Blazek<br>
+Rewritten by Rosen Matev (with support through the
+ Google Summer of Code program 2008)<br>
+Rewritten by Markus Metz (2011, 2012)
+
+<p>
+<i>Last changed: $Date$</i>

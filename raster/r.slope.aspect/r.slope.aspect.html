@@ -1,0 +1,194 @@
+<h2>DESCRIPTION</h2>
+
+<em>r.slope.aspect</em> generates raster maps of slope, aspect, curvatures and
+first and second order partial derivatives from a raster map of true
+elevation values. The user must specify the input <b>elevation</b> raster map
+and at least one output raster maps. The user can also specify the
+<b>format</b> for slope (degrees, percent; default=degrees), and the 
+<b>zscale</b>: multiplicative factor to convert elevation units to horizontal units;
+(default 1.0).
+
+<p>
+The <b>elevation</b> input raster map specified by the user must contain true
+elevation values, <em>not</em> rescaled or categorized data. If the elevation
+values are in other units than in the horizontal units,
+they must be converted to horizontal units using the parameter <b>zscale</b>.
+<em>In GRASS GIS 7, vertical units are not assumed to be meters any more.
+For example, if both your vertical and horizontal units are feet,
+parameter <b>zscale</b> must not be used</em>.
+
+<p>
+The <b>aspect</b> output raster map indicates the direction that slopes are
+facing. The aspect categories represent the number degrees of east. Category
+and color table files are also generated for the aspect raster map. The aspect
+categories represent the number degrees of east and they increase
+counterclockwise: 90 degrees is North, 180 is West, 270 is South 360 is East.
+
+<p>
+The aspect is not defined for slope equal to zero.
+Thus, most cells with a very small slope end up having category 0,
+45, ..., 360 in <b>aspect</b> output.
+It is possible to reduce the bias in these directions
+by filtering out the aspect in areas where the terrain is almost flat.
+A option <b>min_slope</b> can be used to specify the minimum slope
+for which aspect is computed. The aspect for all cells with
+slope&nbsp;&lt;&nbsp;<b>min_slope</b> is set to <i>null</i> (no-data).
+
+<center>
+  <img src="aspect_diagram.png" border="0">
+</center>
+
+<p>
+The <b>slope</b> output raster map contains slope values, stated in degrees of
+inclination from the horizontal if <b>format</b>=degrees option (the default)
+is chosen, and in percent rise if <b>format</b>=percent option is chosen.
+Category and color table files are generated.
+
+<p>
+Profile and tangential curvatures are the curvatures in the direction of
+steepest slope and in the direction of the contour tangent respectively. The
+curvatures are expressed as 1/metres, e.g. a curvature of 0.05 corresponds to a
+radius of curvature of 20m. Convex form values are positive and concave form values
+are negative.
+
+<p><table width="100%" border="0">
+ <tr valign="baseline">
+  <td>
+  <center>
+    <img src="dem.png" border="1">
+    <p>    Example DEM
+    <br><br>
+  </center>
+  </td>
+  <td>
+  </td>
+ </tr>
+
+ <tr valign="baseline">
+  <td>
+  <center>
+    <img src="slope.png" border="1">
+    <p>    Slope (degree) from example DEM
+    <br><br>
+  </center>
+  </td>
+  <td>
+  <center>
+    <img src="aspect.png" border="1">
+    <p>    Aspect (degree) from example DEM
+    <br><br>
+  </center>
+  </td>
+ </tr>
+
+ <tr valign="baseline">
+  <td>
+  <center>
+    <img src="tcurv.png" border="1">
+    <p>    Tangential curvature (m<sup>-1</sup>) from example DEM
+    <br><br>
+  </center>
+  </td>
+  <td>
+  <center>
+    <img src="pcurv.png" border="1">
+    <p>    Profile curvature (m<sup>-1</sup>) from example DEM
+    <br><br>
+  </center>
+  </td>
+  <td>
+  </td>
+ </tr>
+</table>
+
+<p>For some applications, the user will wish to use a reclassified raster map
+of slope that groups slope values into ranges of slope. This can be done using
+<em><a href="r.reclass.html">r.reclass</a></em>. An example of a useful
+reclassification is given below:
+<div class="code"><pre>          category      range   category labels
+                     (in degrees)    (in percent)
+
+             1         0-  1             0-  2%
+             2         2-  3             3-  5%
+             3         4-  5             6- 10%
+             4         6-  8            11- 15%
+             5         9- 11            16- 20%
+             6        12- 14            21- 25%
+             7        15- 90            26% and higher
+
+     The following color table works well with the above
+     reclassification.
+
+          category   red   green   blue
+
+             0       179    179     179
+             1         0    102       0
+             2         0    153       0
+             3       128    153       0
+             4       204    179       0
+             5       128     51      51
+             6       255      0       0
+             7         0      0       0</pre></div>
+
+
+<h2>NOTES</h2>
+
+To ensure that the raster elevation map is not inappropriately resampled,
+the settings for the current region are modified slightly (for the execution
+of the program only): the resolution is set to match the resolution of
+the elevation raster map and the edges of the region (i.e. the north, south, east
+and west) are shifted, if necessary, to line up along edges of the nearest
+cells in the elevation map. If the user really wants the raster elevation map
+resampled to the current region resolution, the <b>-a</b> flag should be specified.
+
+<p>
+The current mask is ignored.
+
+<p>
+The algorithm used to determine slope and aspect uses a 3x3 neighborhood
+around each cell in the raster elevation map. Thus, it is not possible to determine
+slope and aspect for the cells adjacent to the edges in the elevation map
+layer. These cells are assigned a "zero slope" value (category 0) in both
+the slope and aspect raster maps.
+
+<p>
+Horn's formula is used to find the first order derivatives in x and y directions.
+
+<p>
+Only when using integer elevation models, the aspect is biased in 0,
+45, 90, 180, 225, 270, 315, and 360 directions; i.e., the distribution
+of aspect categories is very uneven, with peaks at 0, 45,..., 360 categories.
+When working with floating point elevation models, no such aspect bias occurs.
+
+
+<h2>REFERENCE</h2>
+
+<ul>
+<li> Horn, B. K. P. (1981). <i>Hill Shading and the Reflectance Map</i>, Proceedings
+of the IEEE, 69(1):14-47.
+<li> Mitasova, H. (1985). <i>Cartographic aspects of computer surface modeling. PhD thesis.</i>
+Slovak Technical University , Bratislava
+<li> Hofierka, J., Mitasova, H., Neteler, M., 2009. <i>Geomorphometry in GRASS GIS.</i>
+In: Hengl, T. and Reuter, H.I. (Eds), <i>Geomorphometry: Concepts, Software, Applications. </i>
+Developments in Soil Science, vol. 33, Elsevier, 387-410 pp,
+<a href="http://www.geomorphometry.org">http://www.geomorphometry.org</a>
+</ul>
+
+
+<h2>SEE ALSO</h2>
+
+<em>
+  <a href="r.mapcalc.html">r.mapcalc</a>,
+  <a href="r.neighbors.html">r.neighbors</a>,
+  <a href="r.reclass.html">r.reclass</a>,
+  <a href="r.rescale.html">r.rescale</a>
+</em>
+
+
+<h2>AUTHORS</h2>
+
+Michael Shapiro, U.S.Army Construction Engineering Research Laboratory<br>
+Olga Waupotitsch, U.S.Army Construction Engineering Research Laboratory
+
+<p>
+<i>Last changed: $Date$</i>

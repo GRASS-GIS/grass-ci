@@ -1,0 +1,218 @@
+<h2>DESCRIPTION</h2>
+
+<em>r.compress</em> can be used to compress and decompress
+raster map layers. Additionally, it prints information about the
+map compression and data type of the input raster map(s).
+
+<p>
+During compression, this program reformats raster maps using a run-length-encoding
+(RLE) or ZLIB's "deflate" (LZ77-based) algorithm. Raster map
+layers which contain very little information (such as
+boundary, geology, soils and land use maps) can be greatly
+reduced in size. Some raster map layers are shrunk to
+roughly 1% of their original sizes.  Raster map layers
+containing complex images such as elevation and photo or
+satellite images may increase slightly in size.
+All newly generated raster maps are automatically stored in compressed 
+form (see FORMATS below).  Other modules can read both compressed 
+and regular (uncompressed) file formats.
+
+<p>
+As an example, the Spearfish data base raster map layer
+<em>owner</em> was originally a size of 26600 bytes.  After
+it was RLE compressed, the raster map became only 1249 bytes
+(25351 bytes smaller).
+
+<p>
+Raster files may be decompressed manually to return them to their
+original format, using the <b>-u</b> flag of 
+<em>r.compress</em>. If <em>r.compress</em> is asked to
+compress a raster map which is already compressed (or to
+decompress an already decompressed raster map), it simply informs
+the user the map is already (de)compressed and exits.
+
+
+<h3>TERMINOLOGY</h3>
+
+<ul>
+<li> INTEGER map (CELL data type): a raster map from INTEGER type (whole
+  numbers only)</li>
+<li> FLOAT map (FCELL data type): a raster map from FLOAT type (4 bytes,
+  7-9 digits precision)</li>
+<li> DOUBLE map (DCELL data type): a raster map from DOUBLE type (8 bytes,
+  15-17 digits precision)</li>
+<li> NULL: represents "no data" in raster maps, to be distinguished from
+  0 (zero) data value</li>
+</ul>
+
+<h3>USED COMPRESSION ALGORITHMS</h3>
+
+Floating point (FCELL, DCELL) raster maps never use RLE compression;
+they are either compressed with ZLIB or uncompressed.
+<p>
+Integer (CELL) raster maps are by default ZLIB compressed or may remain
+uncompressed. If the environment variable <tt>GRASS_INT_ZLIB</tt>
+exists and has the value 0, newly generated compressed integer (CELL type)
+raster maps will be compressed using RLE compression instead of ZLIB.
+<p>
+In the internal cellhd file, the value for "compressed" is 1 for RLE and 2 for ZLIB.
+<p>
+Obviously, decompression is controlled by the raster map's compression,
+not the environment variable.
+
+<h2>NOTES</h2>
+
+<em>r.compress</em> can be run either non-interactively or
+interactively.  In non-interactive use, the user must
+specify the name(s) of the raster map layer(s) to be
+compressed (or decompressed) on the command line, using the
+form <b>map=</b><em>name</em>[,<em>name</em>,...] (where
+each <em>name</em> is the name of a raster map layer to be
+compressed or decompressed). The default behavior is to 
+compress the named map(s).  
+
+<h3>FORMATS</h3>
+
+Conceptually, a raster data file consists of rows of cells,
+with each row containing the same number of cells.  A cell
+consists of one or more bytes.  The number of bytes per
+cell depends on the category values stored in the cell.
+Category values in the range 0-255 require 1 byte per cell,
+while category values in the range 256-65535 require 2
+bytes, and category values in the range above 65535 require
+3 (or more) bytes per cell.
+
+<p>
+The <b>decompressed</b> raster map format matches the
+conceptual format.  For example, a raster map with 1 byte
+cells that is 100 rows with 200 cells per row, consists of
+20,000 bytes.  Running the UNIX command <em>ls -l</em> on
+this file will show a size of 20,000.  If the cells were 2
+byte cells, the file would require 40,000 bytes.  The map
+layer category values start with the upper left corner cell
+followed by the other cells along the northern boundary.
+The byte following the last byte of that first row is the
+first cell of the second row of category values (moving
+from left to right).  There are no end-of-row markers or
+other syncing codes in the raster map.  A cell header file
+(<em>cellhd</em>) is used to define how this string of bytes
+is broken up into rows of category values.
+
+<p>
+The <b>compressed</b> RLE format is not so simple, but is quite
+elegant in its design. It not only requires less disk space
+to store the raster data, but often can result in faster
+execution of graphic and analysis programs since there is
+less disk I/O. There are two compressed RLE formats: the
+pre-version 3.0 format (which GRASS programs can read but
+no longer produce), and the version 3.0 format (which is
+automatically used when new raster map layers are
+created).
+
+<h4>PRE-3.0 FORMAT:</h4> 
+
+First 3 bytes (chars) - These are a special code that identifies 
+the raster data as compressed. 
+
+<p>
+Address array (long) - array (size of the number of rows +
+1) of addresses pointing to the internal start of each row.
+Because each row may be a different size, this array is
+necessary to provide a mapping of the data.
+
+<p>
+Row by row, beginning at the northern edge of the data, a
+series of byte groups describes the data.  The number of
+bytes in each group is the number of bytes per cell plus
+one.  The first byte of each group gives a count (up to
+255) of the number of cells that contain the category
+values given by the remaining bytes of the group.
+
+<h4>POST-3.0 FORMAT:</h4> 
+
+The 3 byte code is not used. 
+Instead, a field in the cell header is used to indicate compressed format. 
+
+<p>
+The address array is the same. 
+
+<p>
+The RLE format is the same as the pre-3.0 RLE, except that
+each row of data is preceded by a single byte containing
+the number of bytes per cell for the row, and if
+run-length-encoding the row would not require less space
+than non-run-length-encoding, then the row is not encoded.
+
+<p>
+These improvements give better compression than the pre-3.0
+format in 99% of the raster data layers.  The kinds of
+raster data layers which get bigger are those in which each
+row would be larger if compressed (e.g., imagery band
+files).  But even in this case the raster data layer would
+only be larger by the size of the address array and the
+single byte preceding each row.
+
+<p>
+Since GRASS GIS 7.0.0, the default compression method for
+ Integer (CELL) maps is deflate and not any more the RLE compression.
+
+<h4>DEFLATE compression level</h4>
+
+If the environment variable <tt>GRASS_ZLIB_LEVEL</tt> exists and
+its value can be parsed as an integer, it determines the compression
+level used when newly generated raster maps are compressed using zlib
+compression. This applies to all raster map types (CELL, FCELL, DCELL).
+<p>
+If the variable does not exist, or the value cannot be parsed as an
+integer, zlib's default compression level will be used.
+
+
+<h2>EXAMPLES</h2>
+
+Printing of current compression state:
+<div class="code"><pre>
+r.compress compressed_no -p
+  &lt;compressed_no&gt; (level 0: NONE). Data type: &lt;CELL&gt;
+</pre></div>
+
+<p>
+Applying RLE compression to a copy of the uncompressed map:
+<div class="code"><pre>
+# compression of map using RLE compression
+g.copy raster=compressed_no,compressed_RLE
+
+export GRASS_INT_ZLIB=0 # RLE
+r.compress compressed_RLE 
+r.compress compressed_RLE -p 
+  &lt;compressed_RLE&gt; is compressed (level 1: RLE). Data type: &lt;CELL&gt;
+unset GRASS_INT_ZLIB
+</pre></div>
+
+<p>
+Applying DEFLATE (ZLIB) compression to a copy of the uncompressed map:
+<div class="code"><pre>
+# compression of map using DEFLATE compression
+g.copy raster=compressed_no,compressed_DEFLATE
+
+export GRASS_INT_ZLIB=1 # deflate
+r.compress compressed_DEFLATE
+r.compress compressed_DEFLATE -p
+  &lt;compressed_DEFLATE&gt; is compressed (level 2: DEFLATE). Data type: &lt;CELL&gt;
+unset GRASS_INT_ZLIB
+</pre></div>
+
+
+<h2>SEE ALSO</h2>
+
+<em>
+<a href="r.info.html">r.info</a>,
+<a href="r.support.html">r.support</a>
+</em>
+
+<h2>AUTHORS</h2>
+
+James Westervelt,<br>
+Michael Shapiro,<br> 
+U.S. Army Construction Engineering Research Laboratory
+
+<p><i>Last changed: $Date$</i>

@@ -1,0 +1,67 @@
+<!-- meta page description: wxGUI Graphical Modeler -->
+<!-- meta page index: topic_gui|GUI -->
+<h2>DESCRIPTION</h2>
+
+<p>
+The <b>Graphical Modeler</b> is
+a <em><a href="wxGUI.html">wxGUI</a></em> component which allows the user to
+create, edit, and manage complex models using easy-to-use
+interface. When performing analytical operations in GRASS, the
+operations are not isolated, but part of a chain of operations. Using
+Graphical Modeler, that chain of processes (ie. GRASS modules)
+can be wrapped into one process (ie. model). So it's easier to execute
+the model later with slightly different inputs or parameters.
+
+<p>
+The modeler can be launched from the Layer Manager menu <tt>File ->
+Graphical modeler</tt> or from the main
+toolbar <img src="icons/modeler-main.png" alt="icon">. It's also
+available as stand-alone module <em>g.gui.gmodeler</em>.
+
+<p>
+The Graphical Modeler allows you to:
+
+<ul>
+  <li>define data items (raster, vector, 3D raster maps)</li>
+  <li>define actions (GRASS commands)</li>
+  <li>define relations between data and action items</li>
+  <li>define loops (eg. map series) and conditions (if-else statements)</li>
+  <li>define model variables</li>
+  <li>parameterize GRASS commands</li>
+  <li>define intermediate data</li>
+  <li>validate and run model</li>
+  <li>store model properties to the file (<tt>GRASS Model File|*.gxm</tt>)</li>
+  <li>export model to Python script</li>
+  <li>export model to image file</li>
+</ul>
+
+<center>
+<br>
+<img src="gmodeler_frame.png">
+<br>
+<i>Figure: A model to perform unsupervised classification using MLC and SMAP</i>
+</center>
+
+<h2>SEE ALSO</h2>
+
+<em>
+  <a href="wxGUI.html">wxGUI</a><br>
+  <a href="wxGUI.components.html">wxGUI components</a>
+</em>
+
+<p>
+User-defined models available
+from <a href="http://svn.osgeo.org/grass/grass-addons/wxgui_modeler">SVN</a>.
+
+<p>
+See also
+the <a href="http://grasswiki.osgeo.org/wiki/WxGUI_Graphical_Modeler">wiki</a> page
+(especially various <a href="http://grasswiki.osgeo.org/wiki/WxGUI_Graphical_Modeler#Video_tutorials">video
+tutorials</a>).
+
+<h2>AUTHOR</h2>
+
+Martin Landa, OSGeoREL, Czech Technical University in Prague, Czech Republic
+
+<p>
+<i>$Date$</i>

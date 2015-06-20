@@ -1,0 +1,157 @@
+<h2>DESCRIPTION</h2>
+
+The module <em>t.register</em> is designed to register raster, 3D
+raster and vector maps in the temporal database and in specific space
+time datasets. This module must be used to assign time stamps to
+raster, 3D raster and vector maps. The existing timestamp modules
+<a href="r.timestamp.html">r.timestamp</a>,
+<a href="r3.timestamp.html">r3.timestamp</a> and
+<a href="v.timestamp.html">v.timestamp</a> do not register the maps in the
+temporal database of GRASS. However, timestamps that have been created
+with these modules can be read and used by <em>t.register</em>. This
+works only for maps that are not already registered in the temporal
+database.
+<p>
+This module supports absolute and relative time. Maps can be registered
+by command line argument (a list of comma separated map names) or using
+an input file. The start time, the end time and a temporal increment
+can be provided by command line or in the input file. End time and
+increment are mutual exclusive. The user can register single maps or a
+list of maps at once. Maps can be registered in several space time
+datasets using the same timestamp.
+<p>
+Start time and end time with absolute time must be provided using the
+format <b>yyyy-mm-dd HH:MM:SS +HHMM</b>. It is supported to specify
+only the date <b>yyyy-mm-dd</b>. In case of relative time the temporal
+unit (years, months, days, hours, minutes or seconds) must be provided.
+The relative start time, end time and the increment are integers.
+
+<h2>Note</h2>
+
+The timestamps of registered maps will be stored in the temporal
+database and in the metadata of the grass maps in the spatial database.
+This assures that timestamps can always be accessed with
+<em>(r|r3|v).timestamp</em> and the temporal modules. Timestamps should
+only be modified with <em>t.register</em> because the
+<em>(r|r3|v).timestamp</em> modules have no access to the temporal
+database.
+
+<h2>INPUT FILE FORMAT</h2>
+
+Specification of map names:
+<div class="code"><pre>
+prec_1
+prec_2
+prec_3
+prec_4
+prec_5
+prec_6
+</pre></div>
+
+Specification of map names and the absolute start time (date) of the time instances:
+<div class="code"><pre>
+prec_1|2001-01-01
+prec_2|2001-02-01
+prec_3|2001-03-01
+prec_4|2001-04-01
+prec_5|2001-05-01
+prec_6|2001-06-01
+</pre></div>
+
+Specification of map names and the absolute time stamp (datetime):
+<div class="code"><pre>
+terra_lst_day20020113|2002-01-13 10:30
+terra_lst_day20020114|2002-01-14 10:30
+terra_lst_day20020115|2002-01-15 10:30
+terra_lst_day20020116|2002-01-16 10:30
+terra_lst_day20020117|2002-01-17 10:30
+</pre></div>
+
+Specification of the map name and the absolute time interval with start and end time:
+<div class="code"><pre>
+prec_1|2001-01-01|2001-04-01
+prec_2|2001-04-01|2001-07-01
+prec_3|2001-07-01|2001-10-01
+prec_4|2001-10-01|2002-01-01
+prec_5|2002-01-01|2002-04-01
+prec_6|2002-04-01|2002-07-01
+</pre></div>
+
+<h2>EXAMPLE</h2>
+
+<h3>North Carolina dataset</h3>
+
+Register maps in a absolute space time dataset, creating a time interval
+
+<div class="code"><pre>
+t.register -i type=raster input=precipitation_monthly \
+    maps=`g.list rast patt=*precip* sep=,` start=2009-01-01 \
+    increment="1 months"
+</pre></div>
+
+<h3>Synthetic maps</h3>
+
+In this example we create 6 raster maps that will be registered in a single space time raster dataset named precip_abs using a monthly temporal granularity. The -i flag generates interval time. The generated timestamps will be inspected using r.timestamp and t.rast.list. We will register an additional map with a timetsamp that was set with r.timestamp.
+
+<div class="code"><pre>
+r.mapcalc expr="prec_1 = 100"
+r.mapcalc expr="prec_2 = 200"
+r.mapcalc expr="prec_3 = 300"
+r.mapcalc expr="prec_4 = 400"
+r.mapcalc expr="prec_5 = 500"
+r.mapcalc expr="prec_6 = 600"
+
+t.create type=strds temporaltype=absolute \
+    output=precip_abs title="Example" \
+    descr="Example"
+
+t.register -i type=raster input=precip_abs \
+    maps=prec_1,prec_2,prec_3,prec_4,prec_5,prec_6 \
+    start="2001-01-01" increment="1 months"
+
+r.timestamp prec_1
+1 Jan 2001 00:00:00 / 1 Feb 2001 00:00:00
+
+r.timestamp prec_2
+1 Feb 2001 00:00:00 / 1 Mar 2001 00:00:00
+
+t.rast.list input=precip_abs
+
+name|mapset|start_time|end_time
+prec_1|PERMANENT|2001-01-01 00:00:00|2001-02-01 00:00:00
+prec_2|PERMANENT|2001-02-01 00:00:00|2001-03-01 00:00:00
+prec_3|PERMANENT|2001-03-01 00:00:00|2001-04-01 00:00:00
+prec_4|PERMANENT|2001-04-01 00:00:00|2001-05-01 00:00:00
+prec_5|PERMANENT|2001-05-01 00:00:00|2001-06-01 00:00:00
+prec_6|PERMANENT|2001-06-01 00:00:00|2001-07-01 00:00:00
+
+r.mapcalc expr="prec_7 = 700"
+r.timestamp map=prec_7 date="1 jul 2001 / 1 aug 2001"
+
+t.register type=raster input=precip_abs maps=prec_7
+
+t.rast.list input=precip_abs
+
+name|mapset|start_time|end_time
+prec_1|PERMANENT|2001-01-01 00:00:00|2001-02-01 00:00:00
+prec_2|PERMANENT|2001-02-01 00:00:00|2001-03-01 00:00:00
+prec_3|PERMANENT|2001-03-01 00:00:00|2001-04-01 00:00:00
+prec_4|PERMANENT|2001-04-01 00:00:00|2001-05-01 00:00:00
+prec_5|PERMANENT|2001-05-01 00:00:00|2001-06-01 00:00:00
+prec_6|PERMANENT|2001-06-01 00:00:00|2001-07-01 00:00:00
+prec_7|PERMANENT|2001-07-01 00:00:00|2001-08-01 00:00:00
+</pre></div>
+
+<h2>SEE ALSO</h2>
+
+<em>
+<a href="t.create.html">t.create</a>,
+<a href="t.info.html">t.info</a>
+</em>
+
+<h2>AUTHOR</h2>
+
+S&ouml;ren Gebbert, Th&uuml;nen Institute of Climate-Smart Agriculture
+
+<p><i>Last changed: $Date$</i>
+

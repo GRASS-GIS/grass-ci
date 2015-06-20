@@ -1,0 +1,76 @@
+<h2>DESCRIPTION</h2>
+
+<em>r.clump</em> finds all areas of contiguous cell category values in
+the input raster map. NULL values in the input are ignored. It assigns 
+a unique category value to each such area (&quot;clump&quot;) in the 
+resulting output raster map.
+
+<p>
+Category distinctions in the input raster map are preserved.  This
+means that if distinct category values are adjacent, they will NOT be
+clumped together. The user can
+run <em><a href="r.reclass.html">r.reclass</a></em> prior
+to <em>r.clump</em> to recategorize cells and reassign cell category
+values.
+
+<h2>NOTES</h2>
+
+By default, the resulting clumps are connected only by their four 
+direct neighbors (left, right, top, bottom). The <em>-d</em> flag 
+activates also diagonal clump tracing.
+
+<p>
+<em>r.clump</em> works properly with raster map that contains only
+&quot;fat&quot; areas (more than a single cell in width). Linear
+elements (lines that are a single cell wide) may or may not be clumped
+together depending on the direction of the line - horizontal and
+vertical lines of cells are considered to be contiguous, but diagonal
+lines of cells are not considered to be contiguous and are broken up
+into separate clumps unless the <em>-d</em> flag is used.
+
+<p>
+A random color table and other support files are generated for the
+output raster map.
+
+<h2>EXAMPLES</h2>
+
+Perform clumping on "lakes" map (North Carolina sample dataset) and
+report area sizes for each lake individually rather by waterbody type:
+
+<div class="code"><pre>
+g.region raster=lakes -p
+
+# report sizes by waterbody type
+r.report lakes units=h
+
+# clump per raster polygon
+r.clump lakes out=lakes_individual
+
+# report sizes by individual waterbody
+r.report lakes_individual units=h
+</pre></div>
+
+<h2>SEE ALSO</h2>
+
+<em>
+<a href="r.average.html">r.average</a>,
+<a href="r.buffer.html">r.buffer</a>,
+<a href="r.distance.html">r.distance</a>,
+<a href="r.grow.html">r.grow</a>
+<a href="r.mapcalc.html">r.mapcalc</a>,
+<a href="r.mfilter.html">r.mfilter</a>,
+<a href="r.neighbors.html">r.neighbors</a>,
+<a href="r.to.vect.html">r.to.vect</a>,
+<a href="r.reclass.html">r.reclass</a>,
+<a href="r.statistics.html">r.statistics</a>,
+<a href="r.support.html">r.support</a>
+</em>
+
+<h2>AUTHOR</h2>
+
+Michael Shapiro, U.S. Army Construction Engineering Research
+Laboratory<br>
+Markus Metz (diagonal clump tracing)
+
+<p>
+<i>Last changed: $Date$</i>

@@ -1,0 +1,99 @@
+<h2>DESCRIPTION</h2>
+
+<em>d.grid</em> overlays a grid of user-defined size and
+color in the active display frame on the graphics monitor.
+The grid can be created as a standard rectangular grid or
+a geographic grid. The grid will overlay, not overwrite,
+the contents of the active display frame.
+
+<p>
+<em>d.grid</em> can be run non-interactively or
+interactively.  If the user specifies the grid
+<em>size</em> and (optionally) the grid <em>color</em> on
+the command line the program will run non-interactively; if
+no grid <em>color</em> is given the default will be used.
+Alternately, the user may simply type <b>d.grid</b> on the
+command line; in this case, the program will prompt the
+user for parameter values using the standard GRASS graphical 
+user interface.
+
+
+<h2>NOTES</h2>
+
+<em>d.grid</em> will not erase grids already displayed in
+the active graphics display frame by previous invocations
+of <em>d.grid</em>; multiple invocations of <em>d.grid</em>
+will therefore result in the drawing of multiple grids
+inside the active graphics frame.  (A command like 
+<em><a href="d.erase.html">d.erase</a></em>, which erases the
+entire contents of the active display frame, must be run to
+erase previously drawn grids from the display frame.)
+
+<p>
+If the user provides a <em>-g</em> flag a geographic (projected) grid
+will be drawn. With the <em>-g</em> flag the <em>size</em>
+argument accepts both decimal degrees and colon separated
+ddd:mm:ss coordinates (eg. <tt>00:30:00</tt> for half of a degree).
+
+<p>
+A geographic grid cannot be drawn for a <em>latitude/longitude</em> 
+or <em>XY</em> projection.
+<p>
+Colors may be standard named GRASS colors (red, green, aqua, etc.) or
+a numerical R:G:B triplet, where component values range from 0-255.<br>
+
+<p>
+The grid drawing may be turned off by using the <em>-n</em> flag.<br>
+The border drawing may be turned off by using the <em>-b</em> flag.<br>
+The coordinate text may be turned off by using the <em>-t</em> flag.<br>
+
+<p>
+To draw grid lines at different intervals, e.g. at high latitudes, you
+can run the module twice, once with <b>direction</b>=<i>east-west</i>
+at one interval <b>size</b>, and again with
+<b>direction</b>=<i>north-south</i> at another interval <b>size</b>.
+
+
+<h2>EXAMPLES</h2>
+
+To draw a red geographic grid with 30 minute grid spacing, run 
+either of the following:
+
+<div class="code"><pre>
+d.grid -g size=00:30:00 color=red
+</pre></div>
+
+or
+
+<div class="code"><pre>
+d.grid -g size=0.5 color=255:0:0
+</pre></div>
+
+To draw a blue standard rectangular grid at a 500 (meter) spacing run the following:
+
+<div class="code"><pre>
+d.grid size=500 color=blue
+</pre></div>
+
+
+<h2>SEE ALSO</h2>
+
+<em>
+<a href="d.barscale.html">d.barscale</a>,
+<a href="d.legend.html">d.legend</a>,
+<a href="d.geodesic.html">d.geodesic</a>,
+<a href="d.rhumbline.html">d.rhumbline</a>,
+<a href="d.erase.html">d.erase</a>,
+<a href="d.frame.html">d.frame</a>,
+<a href="d.rast.html">d.rast</a>
+</em>
+
+<h2>AUTHORS</h2>
+
+James Westervelt, U.S. Army Construction Engineering Research Laboratory<br>
+Geogrid support: Bob Covill<br>
+Border support: Markus Neteler<br>
+Text and RGB support: Hamish Bowman<br>
+
+<p>
+<i>Last changed: $Date$</i>
