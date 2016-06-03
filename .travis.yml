@@ -14,15 +14,15 @@ matrix:
       - language: objective-c
         os: osx
 
+env:
+  global:
+    - CFLAGS="-Werror=implicit-function-declaration"
+
 before_install:
   - ./.travis/.travis.$TRAVIS_OS_NAME.before_install.sh
 
 install:
   - ./.travis/.travis.$TRAVIS_OS_NAME.install.sh
-
-env:
-  global:
-    - CFLAGS="-Werror=implicit-function-declaration"
 
 script:
   - ./.travis/.travis.$TRAVIS_OS_NAME.script.sh
