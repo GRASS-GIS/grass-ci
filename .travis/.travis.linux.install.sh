@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 # Author: Ivan Mincik, ivan.mincik@gmail.com
 
-apt-get install --no-install-recommends \
+sudo apt-get install --no-install-recommends \
     autoconf2.13 \
     autotools-dev \
     debhelper \
