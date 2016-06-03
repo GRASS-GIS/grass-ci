@@ -2,7 +2,7 @@
 # Author: Rainer M. Krug, Rainer@krugs.de
 
 ## some tests for the recipe 
-brew audit -v $RECIPE
+# brew audit -v $RECIPE
 
 ## install GRASS 7.1 
 brew install --HEAD \

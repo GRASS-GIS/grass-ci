@@ -2,11 +2,11 @@
 # Author: Rainer M. Krug, Rainer@krugs.de
 
 ## install dependencies
-brew install --only-dependencies \
-     liblas
-
-brew install --build-from-source \
-     liblas
+# brew install --only-dependencies \
+#      liblas
+# 
+# brew install --build-from-source \
+#      liblas
 
 brew install --only-dependencies \
      --HEAD \
