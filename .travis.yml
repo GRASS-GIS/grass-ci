@@ -31,3 +31,6 @@ script:
 ##                 - wenzeslaus@gmail.com
 ##                 - rainer@krugs.de
 ##             on_success: change
+
+## TODO Change so that the .travis.yml files are in one repo and the
+## grass repo is downloaded automatically
