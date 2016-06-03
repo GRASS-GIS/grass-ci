@@ -9,7 +9,7 @@
  *
  *  PURPOSE:      Query raster map
  *                
- *  COPYRIGHT:    (C) 2001-2013 by the GRASS Development Team
+ *  COPYRIGHT:    (C) 2001-2015 by the GRASS Development Team
  * 
  *                This program is free software under the GNU General
  *                Public License (>=v2).  Read the file COPYING that
@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
     DCELL *dcell_row, *prev_d_row, *next_d_row;
     int width;
     int row, col;
-    char buf[2000];
+    char buf[DB_SQL_MAX];
     struct
     {
 	struct Option *vect, *rast, *field, *type, *col, *where;
@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
     G_add_keyword(_("position"));
     G_add_keyword(_("querying"));
     G_add_keyword(_("attribute table"));
+    G_add_keyword(_("surface information"));
     module->description =
 	_("Uploads raster values at positions of vector points to the table.");
 
@@ -162,20 +163,31 @@ int main(int argc, char *argv[])
      */
 
     if (!print_flag->answer) {
-	/* Check column type */
 	col_type = db_column_Ctype(driver, Fi->table, opt.col->answer);
 
-	if (col_type == -1)
-	    G_fatal_error(_("Column <%s> not found"), opt.col->answer);
+	if (col_type == -1) {
+            /* column doesn't exist, create it */
+            G_important_message(_("Column <%s> not found in the table <%s>. Creating..."),
+                                opt.col->answer, Fi->table);
+            sprintf(buf, "ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s",
+                    Fi->table, opt.col->answer,
+                    out_type == CELL_TYPE ? "INTEGER" : "DOUBLE PRECISION");
+            db_set_string(&stmt, buf);
+            if (db_execute_immediate(driver, &stmt) != DB_OK)
+                G_fatal_error(_("Unable to add column <%s> to table <%s>"),
+                              opt.col->answer, Fi->table);
+        }
+        else {
+            /* check column type */
+            if (col_type != DB_C_TYPE_INT && col_type != DB_C_TYPE_DOUBLE)
+                G_fatal_error(_("Column type not supported"));
 
-	if (col_type != DB_C_TYPE_INT && col_type != DB_C_TYPE_DOUBLE)
-	    G_fatal_error(_("Column type not supported"));
+            if (out_type == CELL_TYPE && col_type == DB_C_TYPE_DOUBLE)
+                G_warning(_("Raster type is integer and column type is float"));
 
-	if (out_type == CELL_TYPE && col_type == DB_C_TYPE_DOUBLE)
-	    G_warning(_("Raster type is integer and column type is float"));
-
-	if (out_type != CELL_TYPE && col_type == DB_C_TYPE_INT)
-	    G_warning(_("Raster type is float and column type is integer, some data lost!!"));
+            if (out_type != CELL_TYPE && col_type == DB_C_TYPE_INT)
+                G_warning(_("Raster type is float and column type is integer, some data lost!!"));
+        }
     }
 
     vtype = Vect_option_to_types(opt.type);
@@ -241,6 +253,11 @@ int main(int argc, char *argv[])
     }
     Vect_close(&Map);
 
+    if (point_cnt < 1) {
+        G_important_message(_("No features of type (%s) found in vector map <%s>"),
+                            opt.type->answer, opt.vect->answer);
+        exit(EXIT_SUCCESS);
+    }
     G_debug(1, "Read %d vector points", point_cnt);
     /* Cache may contain duplicate categories, sort by cat, find and remove duplicates 
      * and recalc count and decrease point_cnt  */
@@ -322,13 +339,13 @@ int main(int argc, char *argv[])
 		if (interp_flag->answer) {
 		    if (cache[point].row <= 0)
 			Rast_set_null_value(prev_d_row, window.cols,
-					    out_type);
+					    DCELL_TYPE);
 		    else
 			Rast_get_d_row(fd, prev_d_row, cache[point].row - 1);
 
 		    if (cache[point].row + 1 > window.rows - 1)
 			Rast_set_null_value(next_d_row, window.cols,
-					    out_type);
+					    DCELL_TYPE);
 		    else
 			Rast_get_d_row(fd, next_d_row, cache[point].row + 1);
 		}
@@ -623,7 +640,7 @@ int main(int argc, char *argv[])
 		sprintf(buf, " AND %s", opt.where->answer);
 		db_append_string(&stmt, buf);
 	    }
-	    G_debug(3, db_get_string(&stmt));
+	    G_debug(3, "%s", db_get_string(&stmt));
 
 	    /* Update table */
 	    if (db_execute_immediate(driver, &stmt) == DB_OK) {
@@ -646,7 +663,8 @@ int main(int argc, char *argv[])
     /* Report */
     G_verbose_message(_("%d categories loaded from vector"), point_cnt);
     if (dupl_cnt > 0)
-	G_message(_("%d duplicate categories in vector"), dupl_cnt);
+	G_message(_("%d duplicate categories in vector map <%s>"),
+                  dupl_cnt, opt.vect->answer);
 
     if (!print_flag->answer) {
 	G_verbose_message(_("%d categories loaded from table"), select);

@@ -19,6 +19,7 @@
 #% keyword: temporal
 #% keyword: aggregation
 #% keyword: raster
+#% keyword: time
 #%end
 
 #%option G_OPT_STRDS_INPUT
@@ -44,6 +45,15 @@
 #% required: yes
 #% multiple: no
 #% gisprompt:
+#%end
+
+#%option
+#% key: suffix
+#% type: string
+#% description: Suffix to add at basename: set 'gran' for granularity, 'time' for the full time format, 'num' for numerical suffix with a specific number of digits (default %05)
+#% answer: gran
+#% required: no
+#% multiple: no
 #%end
 
 #%option
@@ -87,11 +97,6 @@
 #% description: Register Null maps
 #%end
 
-#%flag
-#% key: s
-#% description: Use start time - truncated accoring to granularity - as suffix. This flag overrides the offset option.
-#%end
-
 import grass.script as gcore
 import grass.temporal as tgis
 
@@ -111,7 +116,7 @@ def main():
     sampling = options["sampling"]
     offset = options["offset"]
     nprocs = options["nprocs"]
-    time_suffix = flags["s"]
+    time_suffix = options["suffix"]
     type = options["type"]
     
     topo_list = sampling.split(",")

@@ -20,6 +20,7 @@
 #% keyword: map management
 #% keyword: raster
 #% keyword: list
+#% keyword: time
 #%end
 
 #%option G_OPT_STRDS_INPUT
@@ -70,8 +71,12 @@
 #%end
 
 #%option G_OPT_F_SEP
-#% description: Field separator character between the output columns
+#% label: Field separator character between the output columns
 #% guisection: Formatting
+#%end
+
+#%option G_OPT_F_OUTPUT
+#% required: no
 #%end
 
 #%flag
@@ -97,12 +102,13 @@ def main():
     method = options["method"]
     granule = options["granule"]
     header = flags["s"]
+    output = options["output"]
 
     # Make sure the temporal database exists
     tgis.init()
 
-    tgis.list_maps_of_stds(
-        "strds", input, columns, order, where, separator, method, header, granule)
+    tgis.list_maps_of_stds("strds", input, columns, order, where, separator,
+                           method, header, granule, outpath=output)
 
 if __name__ == "__main__":
     options, flags = grass.parser()

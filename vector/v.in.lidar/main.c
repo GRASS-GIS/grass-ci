@@ -4,19 +4,17 @@
  * MODULE:       v.in.lidar
  *
  * AUTHOR(S):    Markus Metz
+ *               Vaclav Petras (decimation, cats, areas, zrange)
  *               based on v.in.ogr
  *
  * PURPOSE:      Import LiDAR LAS points
  *
- * COPYRIGHT:    (C) 2011-2014 by the GRASS Development Team
+ * COPYRIGHT:    (C) 2011-2015 by the GRASS Development Team
  *
  *               This program is free software under the
  *               GNU General Public License (>=v2).
  *               Read the file COPYING that comes with GRASS
  *               for details.
- *
- * TODO: - make fixed field length of OFTIntegerList dynamic
- *       - several other TODOs below
 **************************************************************/
 
 #include <stdlib.h>
@@ -29,82 +27,46 @@
 #include <grass/glocale.h>
 #include <liblas/capi/liblas.h>
 
+#include "count_decimation.h"
+#include "projection.h"
+#include "lidar.h"
+#include "attributes.h"
+#include "info.h"
+#include "vector_mask.h"
+#include "filters.h"
+
 #ifndef MAX
 #  define MIN(a,b)      ((a<b) ? a : b)
 #  define MAX(a,b)      ((a>b) ? a : b)
 #endif
 
-#define LAS_ALL 0
-#define LAS_FIRST 1
-#define LAS_LAST 2
-#define LAS_MID 3
-
-/*
- * ASPRS Standard LIDAR Point Classes
- * Classification Value (bits 0:4) : Meaning
- *      0 : Created, never classified
- *      1 : Unclassified
- *      2 : Ground
- *      3 : Low Vegetation
- *      4 : Medium Vegetation
- *      5 : High Vegetation
- *      6 : Building
- *      7 : Low Point (noise)
- *      8 : Model Key-point (mass point)
- *      9 : Water
- *     10 : Reserved for ASPRS Definition
- *     11 : Reserved for ASPRS Definition
- *     12 : Overlap Points
- *  13-31 : Reserved for ASPRS Definition
- */
-
-/* Classification Bit Field Encoding
- * Bits | Field Name     | Description
- *  0-4 | Classification | Standard ASPRS classification as defined in the
- *                         above classification table.
- *    5 | Synthetic      | If set then this point was created by a technique
- *                         other than LIDAR collection such as digitized from
- *	                   a photogrammetric stereo model or by traversing
- *                         a waveform.
- *    6 | Key-point      | If set, this point is considered to be a model 
- *                         key-point and thus generally should not be withheld
- *                         in a thinning algorithm.
- *    7 | Withheld       | If set, this point should not be included in
- *                         processing (synonymous with Deleted).
-*/
-
-struct class_table
+static void check_layers_not_equal(int primary, int secondary,
+                                   const char *primary_name,
+                                   const char *secondary_name)
 {
-    int code;
-    char *name;
-};
+    if (primary && primary == secondary)
+        G_fatal_error(_("Values of %s and %s are the same."
+                        " All categories would be stored only"
+                        " in layer number <%d>"), primary_name,
+                      secondary_name, primary);
+}
 
-static struct class_table class_val[] = {
-    {0, "Created, never classified"},
-    {1, "Unclassified"},
-    {2, "Ground"},
-    {3, "Low Vegetation"},
-    {4, "Medium Vegetation"},
-    {5, "High Vegetation"},
-    {6, "Building"},
-    {7, "Low Point (noise)"},
-    {8, "Model Key-point (mass point)"},
-    {9, "Water"},
-    {10, "Reserved for ASPRS Definition"},
-    {11, "Reserved for ASPRS Definition"},
-    {12, "Overlap Points"},
-    {13 /* 13 - 31 */, "Reserved for ASPRS Definition"},
-    {0, 0}
-};
+static void check_layers_in_list_not_equal(struct Option **options,
+                                           int *values, size_t size)
+{
+    size_t layer_index_1, layer_index_2;
+    for (layer_index_1 = 0; layer_index_1 < size; layer_index_1++) {
+        for (layer_index_2 = 0; layer_index_2 < size; layer_index_2++) {
+            if (layer_index_1 != layer_index_2) {
+                check_layers_not_equal(values[layer_index_1],
+                                       values[layer_index_2],
+                                       options[layer_index_1]->key,
+                                       options[layer_index_2]->key);
+            }
+        }
+    }
+}
 
-static struct class_table class_type[] = {
-    {5, "Synthetic"},
-    {6, "Key-point"},
-    {7, "Withheld"},
-    {0, 0}
-};
-
-void print_lasinfo(LASHeaderH LAS_header, LASSRSH LAS_srs);
 
 int main(int argc, char *argv[])
 {
@@ -112,9 +74,17 @@ int main(int argc, char *argv[])
     float xmin = 0., ymin = 0., xmax = 0., ymax = 0.;
     struct GModule *module;
     struct Option *in_opt, *out_opt, *spat_opt, *filter_opt, *class_opt;
-    struct Option *outloc_opt;
+    struct Option *id_layer_opt;
+    struct Option *return_layer_opt;
+    struct Option *class_layer_opt;
+    struct Option *rgb_layer_opt;
+    struct Option *vector_mask_opt, *vector_mask_field_opt;
+    struct Option *skip_opt, *preserve_opt, *offset_opt, *limit_opt;
+    struct Option *outloc_opt, *zrange_opt;
     struct Flag *print_flag, *notab_flag, *region_flag, *notopo_flag;
+    struct Flag *nocats_flag;
     struct Flag *over_flag, *extend_flag, *no_import_flag;
+    struct Flag *invert_mask_flag;
     char buf[2000];
     struct Key_Value *loc_proj_info = NULL, *loc_proj_units = NULL;
     struct Key_Value *proj_info, *proj_units;
@@ -129,7 +99,6 @@ int main(int argc, char *argv[])
     /* Attributes */
     struct field_info *Fi;
     dbDriver *driver;
-    dbString sql, strval;
     
     /* LAS */
     LASReaderH LAS_reader;
@@ -139,15 +108,25 @@ int main(int argc, char *argv[])
     double scale_x, scale_y, scale_z, offset_x, offset_y, offset_z;
     int las_point_format;
     int have_time, have_color;
-    int return_filter;
-    int skipme;
     int point_class;
-    unsigned int not_valid;	
 
     struct line_pnts *Points;
     struct line_cats *Cats;
 
-    unsigned int n_features, feature_count, n_outside, n_filtered, n_class_filtered;
+    int cat_max_reached = FALSE;
+
+#ifdef HAVE_LONG_LONG_INT
+    unsigned long long n_features; /* what libLAS reports as point count */
+    unsigned long long points_imported; /* counter how much we have imported */
+    unsigned long long feature_count, n_outside, zrange_filtered,
+        n_outside_mask, n_filtered, n_class_filtered, not_valid;
+#else
+    unsigned long n_features;
+    unsigned long points_imported;
+    unsigned long feature_count, n_outside, zrange_filtered,
+        n_outside_mask, n_filtered, n_class_filtered, not_valid;
+#endif
+
     int overwrite;
 
     G_gisinit(argv[0]);
@@ -163,7 +142,38 @@ int main(int argc, char *argv[])
     in_opt->description = _("LiDAR input files in LAS format (*.las or *.laz)");
 
     out_opt = G_define_standard_option(G_OPT_V_OUTPUT);
-    
+
+    id_layer_opt = G_define_standard_option(G_OPT_V_FIELD);
+    id_layer_opt->key = "id_layer";
+    id_layer_opt->label = _("Layer number to store generated point ID as category");
+    id_layer_opt->description = _("Set to 1 by default, use -c to not store it");
+    id_layer_opt->answer = NULL;
+    id_layer_opt->guisection = _("Categories");
+
+    return_layer_opt = G_define_standard_option(G_OPT_V_FIELD);
+    return_layer_opt->key = "return_layer";
+    return_layer_opt->label =
+        _("Layer number to store return information as category");
+    return_layer_opt->description = _("Leave empty to not store it");
+    return_layer_opt->answer = NULL;
+    return_layer_opt->guisection = _("Categories");
+
+    class_layer_opt = G_define_standard_option(G_OPT_V_FIELD);
+    class_layer_opt->key = "class_layer";
+    class_layer_opt->label =
+        _("Layer number to store class number as category");
+    class_layer_opt->description = _("Leave empty to not store it");
+    class_layer_opt->answer = NULL;
+    class_layer_opt->guisection = _("Categories");
+
+    rgb_layer_opt = G_define_standard_option(G_OPT_V_FIELD);
+    rgb_layer_opt->key = "rgb_layer";
+    rgb_layer_opt->label =
+        _("Layer number where RBG colors are stored as category");
+    rgb_layer_opt->description = _("Leave empty to not store it");
+    rgb_layer_opt->answer = NULL;
+    rgb_layer_opt->guisection = _("Categories");
+
     spat_opt = G_define_option();
     spat_opt->key = "spatial";
     spat_opt->type = TYPE_DOUBLE;
@@ -171,17 +181,18 @@ int main(int argc, char *argv[])
     spat_opt->required = NO;
     spat_opt->key_desc = "xmin,ymin,xmax,ymax";
     spat_opt->label = _("Import subregion only");
-    spat_opt->guisection = _("Subregion");
+    spat_opt->guisection = _("Selection");
     spat_opt->description =
 	_("Format: xmin,ymin,xmax,ymax - usually W,S,E,N");
 
-    outloc_opt = G_define_option();
-    outloc_opt->key = "location";
-    outloc_opt->type = TYPE_STRING;
-    outloc_opt->required = NO;
-    outloc_opt->description = _("Name for new location to create");
-    outloc_opt->key_desc = "name";
-    
+    zrange_opt = G_define_option();
+    zrange_opt->key = "zrange";
+    zrange_opt->type = TYPE_DOUBLE;
+    zrange_opt->required = NO;
+    zrange_opt->key_desc = "min,max";
+    zrange_opt->description = _("Filter range for z data (min,max)");
+    zrange_opt->guisection = _("Selection");
+
     filter_opt = G_define_option();
     filter_opt->key = "return_filter";
     filter_opt->type = TYPE_STRING;
@@ -189,6 +200,7 @@ int main(int argc, char *argv[])
     filter_opt->label = _("Only import points of selected return type");
     filter_opt->description = _("If not specified, all points are imported");
     filter_opt->options = "first,last,mid";
+    filter_opt->guisection = _("Selection");
 
     class_opt = G_define_option();
     class_opt->key = "class_filter";
@@ -198,32 +210,106 @@ int main(int argc, char *argv[])
     class_opt->label = _("Only import points of selected class(es)");
     class_opt->description = _("Input is comma separated integers. "
                                "If not specified, all points are imported.");
+    class_opt->guisection = _("Selection");
+
+    vector_mask_opt = G_define_standard_option(G_OPT_V_INPUT);
+    vector_mask_opt->key = "mask";
+    vector_mask_opt->required = NO;
+    vector_mask_opt->label = _("Areas where to import points");
+    vector_mask_opt->description = _("Name of vector map with areas where the points should be imported");
+    vector_mask_opt->guisection = _("Selection");
+
+    vector_mask_field_opt = G_define_standard_option(G_OPT_V_FIELD);
+    vector_mask_field_opt->key = "mask_layer";
+    vector_mask_field_opt->label = _("Layer number or name for mask option");
+    vector_mask_field_opt->guisection = _("Selection");
+
+    skip_opt = G_define_option();
+    skip_opt->key = "skip";
+    skip_opt->type = TYPE_INTEGER;
+    skip_opt->multiple = NO;
+    skip_opt->required = NO;
+    skip_opt->label = _("Do not import every n-th point");
+    skip_opt->description = _("For example, 5 will import 80 percent of points. "
+                              "If not specified, all points are imported");
+    skip_opt->guisection = _("Decimation");
+
+    preserve_opt = G_define_option();
+    preserve_opt->key = "preserve";
+    preserve_opt->type = TYPE_INTEGER;
+    preserve_opt->multiple = NO;
+    preserve_opt->required = NO;
+    preserve_opt->label = _("Import only every n-th point");
+    preserve_opt->description = _("For example, 4 will import 25 percent of points. "
+                                  "If not specified, all points are imported");
+    preserve_opt->guisection = _("Decimation");
+
+    offset_opt = G_define_option();
+    offset_opt->key = "offset";
+    offset_opt->type = TYPE_INTEGER;
+    offset_opt->multiple = NO;
+    offset_opt->required = NO;
+    offset_opt->label = _("Skip first n points");
+    offset_opt->description = _("Skips the given number of points at the beginning.");
+    offset_opt->guisection = _("Decimation");
+
+    limit_opt = G_define_option();
+    limit_opt->key = "limit";
+    limit_opt->type = TYPE_INTEGER;
+    limit_opt->multiple = NO;
+    limit_opt->required = NO;
+    limit_opt->label = _("Import only n points");
+    limit_opt->description = _("Imports only the given number of points");
+    limit_opt->guisection = _("Decimation");
+
+    outloc_opt = G_define_option();
+    outloc_opt->key = "location";
+    outloc_opt->type = TYPE_STRING;
+    outloc_opt->required = NO;
+    outloc_opt->description = _("Name for new location to create");
+    outloc_opt->key_desc = "name";
 
     print_flag = G_define_flag();
     print_flag->key = 'p';
     print_flag->description =
 	_("Print LAS file info and exit");
     print_flag->suppress_required = YES;
-    
-    notab_flag = G_define_standard_flag(G_FLG_V_TABLE);
-    notab_flag->guisection = _("Attributes");
-
-    over_flag = G_define_flag();
-    over_flag->key = 'o';
-    over_flag->label =
-	_("Override projection check (use current location's projection)");
-    over_flag->description =
-	_("Assume that the dataset has same projection as the current location");
 
     region_flag = G_define_flag();
     region_flag->key = 'r';
-    region_flag->guisection = _("Subregion");
+    region_flag->guisection = _("Selection");
     region_flag->description = _("Limit import to the current region");
+
+    invert_mask_flag = G_define_flag();
+    invert_mask_flag->key = 'i';
+    invert_mask_flag->description = _("Invert mask when selecting points");
+    invert_mask_flag->guisection = _("Selection");
 
     extend_flag = G_define_flag();
     extend_flag->key = 'e';
     extend_flag->description =
-	_("Extend region extents based on new dataset");
+        _("Extend region extents based on new dataset");
+
+    notab_flag = G_define_standard_flag(G_FLG_V_TABLE);
+    notab_flag->guisection = _("Speed");
+
+    nocats_flag = G_define_flag();
+    nocats_flag->key = 'c';
+    nocats_flag->label =
+        _("Do not automatically add unique ID as category to each point");
+    nocats_flag->description =
+        _("Create only requested layers and categories");
+    nocats_flag->guisection = _("Speed");
+
+    notopo_flag = G_define_standard_flag(G_FLG_V_TOPO);
+    notopo_flag->guisection = _("Speed");
+
+    over_flag = G_define_flag();
+    over_flag->key = 'o';
+    over_flag->label =
+        _("Override projection check (use current location's projection)");
+    over_flag->description =
+        _("Assume that the dataset has same projection as the current location");
 
     no_import_flag = G_define_flag();
     no_import_flag->key = 'i';
@@ -232,7 +318,12 @@ int main(int argc, char *argv[])
           " Do not import the vector data.");
     no_import_flag->suppress_required = YES;
 
-    notopo_flag = G_define_standard_flag(G_FLG_V_TOPO);
+    G_option_exclusive(skip_opt, preserve_opt, NULL);
+    G_option_requires(nocats_flag, notab_flag, NULL);
+    G_option_exclusive(nocats_flag, id_layer_opt, NULL);
+    G_option_requires(return_layer_opt, id_layer_opt, nocats_flag, NULL);
+    G_option_requires(class_layer_opt, id_layer_opt, nocats_flag, NULL);
+    G_option_requires(rgb_layer_opt, id_layer_opt, nocats_flag, NULL);
 
     /* The parser checks if the map already exists in current mapset, this is
      * wrong if location options is used, so we switch out the check and do it
@@ -282,16 +373,60 @@ int main(int argc, char *argv[])
 	exit(EXIT_SUCCESS);
     }
 
-    return_filter = LAS_ALL;
-    if (filter_opt->answer) {
-	if (strcmp(filter_opt->answer, "first") == 0)
-	    return_filter = LAS_FIRST;
-	else if (strcmp(filter_opt->answer, "last") == 0)
-	    return_filter = LAS_LAST;
-	else if (strcmp(filter_opt->answer, "mid") == 0)
-	    return_filter = LAS_MID;
-	else
-	    G_fatal_error(_("Unknown filter option <%s>"), filter_opt->answer);
+    struct ReturnFilter return_filter_struct;
+    return_filter_create_from_string(&return_filter_struct, filter_opt->answer);
+    struct ClassFilter class_filter;
+    class_filter_create_from_strings(&class_filter, class_opt->answers);
+
+    int id_layer = 1;
+    int return_layer = 0;
+    int class_layer = 0;
+    int rgb_layer = 0;
+    if (id_layer_opt->answer)
+        id_layer = atoi(id_layer_opt->answer);
+    if (return_layer_opt->answer)
+        return_layer = atoi(return_layer_opt->answer);
+    if (class_layer_opt->answer)
+        class_layer = atoi(class_layer_opt->answer);
+    if (rgb_layer_opt->answer)
+        rgb_layer = atoi(rgb_layer_opt->answer);
+
+    if (nocats_flag->answer) {
+        id_layer = 0;
+    }
+    /* no cats forces no table earlier */
+    if (!notab_flag->answer && !id_layer) {
+        G_message(_("-%c flag is not set but ID layer is not specified"), notab_flag->key);
+        G_fatal_error(_("ID layer is required to store attribute table"));
+    }
+
+    struct Option *layer_options[4] = {id_layer_opt, return_layer_opt,
+                                       class_layer_opt, rgb_layer_opt};
+    int layer_values[4] = {id_layer, return_layer, class_layer, rgb_layer};
+    check_layers_in_list_not_equal(layer_options, layer_values, 4);
+
+    if (id_layer)
+        G_verbose_message(_("Storing generated point IDs as categories"
+                            " in the layer <%d>, consequently no more"
+                            " than %d points can be imported"),
+                          id_layer, GV_CAT_MAX);
+
+    double zrange_min, zrange_max;
+    int use_zrange = FALSE;
+
+    if (zrange_opt->answer != NULL) {
+        if (zrange_opt->answers[0] == NULL || zrange_opt->answers[1] == NULL)
+            G_fatal_error(_("Invalid zrange <%s>"), zrange_opt->answer);
+        sscanf(zrange_opt->answers[0], "%lf", &zrange_min);
+        sscanf(zrange_opt->answers[1], "%lf", &zrange_max);
+        /* for convenience, switch order to make valid input */
+        if (zrange_min > zrange_max) {
+            double tmp = zrange_max;
+
+            zrange_max = zrange_min;
+            zrange_min = tmp;
+        }
+        use_zrange = TRUE;
     }
 
     if (region_flag->answer) {
@@ -376,114 +511,14 @@ int main(int argc, char *argv[])
 	    it should switch back with G_switch_env(). See r.in.gdal */
     }
     else {
-	int err = 0;
-
-	/* Projection only required for checking so convert non-interactively */
-	if (GPJ_wkt_to_grass(&cellhd, &proj_info,
-			     &proj_units, projstr, 0) < 0)
-	    G_warning(_("Unable to convert input map projection information to "
-		       "GRASS format for checking"));
-
 	/* Does the projection of the current location match the dataset? */
 	/* G_get_window seems to be unreliable if the location has been changed */
 	G_get_default_window(&loc_wind);
-	/* fetch LOCATION PROJ info */
-	if (loc_wind.proj != PROJECTION_XY) {
-	    loc_proj_info = G_get_projinfo();
-	    loc_proj_units = G_get_projunits();
-	}
-
-	if (over_flag->answer) {
-	    cellhd.proj = loc_wind.proj;
-	    cellhd.zone = loc_wind.zone;
-	    G_message(_("Over-riding projection check"));
-	}
-	else if (loc_wind.proj != cellhd.proj
-		 || (err =
-		     G_compare_projections(loc_proj_info, loc_proj_units,
-					   proj_info, proj_units)) != TRUE) {
-	    int i_value;
-
-	    strcpy(error_msg,
-		   _("Projection of dataset does not"
-		     " appear to match current location.\n\n"));
-
-	    /* TODO: output this info sorted by key: */
-	    if (loc_wind.proj != cellhd.proj || err != -2) {
-		if (loc_proj_info != NULL) {
-		    strcat(error_msg, _("GRASS LOCATION PROJ_INFO is:\n"));
-		    for (i_value = 0; i_value < loc_proj_info->nitems;
-			 i_value++)
-			sprintf(error_msg + strlen(error_msg), "%s: %s\n",
-				loc_proj_info->key[i_value],
-				loc_proj_info->value[i_value]);
-		    strcat(error_msg, "\n");
-		}
-
-		if (proj_info != NULL) {
-		    strcat(error_msg, _("Import dataset PROJ_INFO is:\n"));
-		    for (i_value = 0; i_value < proj_info->nitems; i_value++)
-			sprintf(error_msg + strlen(error_msg), "%s: %s\n",
-				proj_info->key[i_value],
-				proj_info->value[i_value]);
-		}
-		else {
-		    strcat(error_msg, _("Import dataset PROJ_INFO is:\n"));
-		    if (cellhd.proj == PROJECTION_XY)
-			sprintf(error_msg + strlen(error_msg),
-				"Dataset proj = %d (unreferenced/unknown)\n",
-				cellhd.proj);
-		    else if (cellhd.proj == PROJECTION_LL)
-			sprintf(error_msg + strlen(error_msg),
-				"Dataset proj = %d (lat/long)\n",
-				cellhd.proj);
-		    else if (cellhd.proj == PROJECTION_UTM)
-			sprintf(error_msg + strlen(error_msg),
-				"Dataset proj = %d (UTM), zone = %d\n",
-				cellhd.proj, cellhd.zone);
-		    else
-			sprintf(error_msg + strlen(error_msg),
-				"Dataset proj = %d (unknown), zone = %d\n",
-				cellhd.proj, cellhd.zone);
-		}
-	    }
-	    else {
-		if (loc_proj_units != NULL) {
-		    strcat(error_msg, "GRASS LOCATION PROJ_UNITS is:\n");
-		    for (i_value = 0; i_value < loc_proj_units->nitems;
-			 i_value++)
-			sprintf(error_msg + strlen(error_msg), "%s: %s\n",
-				loc_proj_units->key[i_value],
-				loc_proj_units->value[i_value]);
-		    strcat(error_msg, "\n");
-		}
-
-		if (proj_units != NULL) {
-		    strcat(error_msg, "Import dataset PROJ_UNITS is:\n");
-		    for (i_value = 0; i_value < proj_units->nitems; i_value++)
-			sprintf(error_msg + strlen(error_msg), "%s: %s\n",
-				proj_units->key[i_value],
-				proj_units->value[i_value]);
-		}
-	    }
-	    sprintf(error_msg + strlen(error_msg),
-		    _("\nIn case of no significant differences in the projection definitions,"
-		      " use the -o flag to ignore them and use"
-		      " current location definition.\n"),
-		    G_program_name());
-	    strcat(error_msg,
-		   _("Consider generating a new location with 'location' parameter"
-		    " from input data set.\n"));
-	    G_fatal_error(error_msg);
-	}
-	else {
-	    G_verbose_message(_("Projection of input dataset and current "
-				"location appear to match"));
-	}
+    projstr = LASSRS_GetWKT_CompoundOK(LAS_srs);
+    /* we are printing the non-warning messages only for first file */
+    projection_check_wkt(cellhd, loc_wind, projstr, over_flag->answer,
+                         TRUE);
     }
-
-    db_init_string(&sql);
-    db_init_string(&strval);
 
     if (!outloc_opt->answer) {	/* Check if the map exists */
 	if (G_find_vector2(out_opt->answer, G_mapset())) {
@@ -504,7 +539,12 @@ int main(int argc, char *argv[])
 	G_fatal_error(_("Unable to create vector map <%s>"), out_opt->answer);
 
     Vect_hist_command(&Map);
-    
+
+    /* libLAS uses uint32_t according to the source code
+     * or unsigned int according to the online doc,
+     * so just storing in long doesn't help.
+     * Thus, we use this just for the messages and percents.
+     */
     n_features = LASHeader_GetPointRecordsCount(LAS_header);
     las_point_format = LASHeader_GetDataFormatId(LAS_header);
 
@@ -516,130 +556,44 @@ int main(int argc, char *argv[])
 
     /* Add DB link */
     if (!notab_flag->answer) {
-	char *cat_col_name = GV_KEY_COLUMN;
+        create_table_for_lidar(&Map, out_opt->answer, id_layer, &driver,
+                               &Fi, have_time, have_color);
+    }
 
-	Fi = Vect_default_field_info(&Map, 1, NULL, GV_1TABLE);
-
-	Vect_map_add_dblink(&Map, 1, out_opt->answer, Fi->table,
-			    cat_col_name, Fi->database, Fi->driver);
-
-	/* check available LAS info, depends on POINT DATA RECORD FORMAT [0-5] */
-	/* X (double),
-	 * Y (double), 
-	 * Z (double), 
-	 * intensity (double), 
-	 * return number (int), 
-	 * number of returns (int),
-	 * scan direction (int),
-	 * flight line edge (int),
-	 * classification type (char),
-	 * class (char),
-	 * time (double) (FORMAT 1, 3, 4, 5),
-	 * scan angle rank (int),
-	 * source ID (int),
-	 * user data (char), ???
-	 * red (int)  (FORMAT 2, 3, 5),
-	 * green (int) (FORMAT 2, 3, 5),
-	 * blue (int) (FORMAT 2, 3, 5)*/
-	 
-	/* Create table */
-	sprintf(buf, "create table %s (%s integer", Fi->table,
-		cat_col_name);
-	db_set_string(&sql, buf);
-	
-	/* x, y, z */
-	sprintf(buf, ", x_coord double precision");
-	db_append_string(&sql, buf);
-	sprintf(buf, ", y_coord double precision");
-	db_append_string(&sql, buf);
-	sprintf(buf, ", z_coord double precision");
-	db_append_string(&sql, buf);
-	/* intensity */
-	sprintf(buf, ", intensity integer");
-	db_append_string(&sql, buf);
-	/* return number */
-	sprintf(buf, ", return integer");
-	db_append_string(&sql, buf);
-	/* number of returns */
-	sprintf(buf, ", n_returns integer");
-	db_append_string(&sql, buf);
-	/* scan direction */
-	sprintf(buf, ", scan_dir integer");
-	db_append_string(&sql, buf);
-	/* flight line edge */
-	sprintf(buf, ", edge integer");
-	db_append_string(&sql, buf);
-	/* classification type */
-	sprintf(buf, ", cl_type varchar(20)");
-	db_append_string(&sql, buf);
-	/* classification class */
-	sprintf(buf, ", class varchar(40)");
-	db_append_string(&sql, buf);
-	/* GPS time */
-	if (have_time) {
-	    sprintf(buf, ", gps_time double precision");
-	    db_append_string(&sql, buf);
-	}
-	/* scan angle */
-	sprintf(buf, ", angle integer");
-	db_append_string(&sql, buf);
-	/* source id */
-	sprintf(buf, ", src_id integer");
-	db_append_string(&sql, buf);
-	/* user data */
-	sprintf(buf, ", usr_data integer");
-	db_append_string(&sql, buf);
-	/* colors */
-	if (have_color) {
-	    sprintf(buf, ", red integer, green integer, blue integer");
-	    db_append_string(&sql, buf);
-	    sprintf(buf, ", GRASSRGB varchar(11)");
-	    db_append_string(&sql, buf);
-	}
-
-	db_append_string(&sql, ")");
-	G_debug(3, db_get_string(&sql));
-
-	driver =
-	    db_start_driver_open_database(Fi->driver,
-					  Vect_subst_var(Fi->database,
-							 &Map));
-	if (driver == NULL) {
-	    G_fatal_error(_("Unable open database <%s> by driver <%s>"),
-			  Vect_subst_var(Fi->database, &Map), Fi->driver);
-	}
-        db_set_error_handler_driver(driver);
-
-	if (db_execute_immediate(driver, &sql) != DB_OK) {
-	    G_fatal_error(_("Unable to create table: '%s'"),
-			  db_get_string(&sql));
-	}
-
-	if (db_create_index2(driver, Fi->table, cat_col_name) != DB_OK)
-	    G_warning(_("Unable to create index for table <%s>, key <%s>"),
-		      Fi->table, cat_col_name);
-
-	if (db_grant_on_table
-	    (driver, Fi->table, DB_PRIV_SELECT,
-	     DB_GROUP | DB_PUBLIC) != DB_OK)
-	    G_fatal_error(_("Unable to grant privileges on table <%s>"),
-			  Fi->table);
-
-	db_begin_transaction(driver);
+    struct VectorMask vector_mask;
+    if (vector_mask_opt->answer) {
+        VectorMask_init(&vector_mask, vector_mask_opt->answer,
+                        vector_mask_field_opt->answer, (int)invert_mask_flag->answer);
     }
 
     /* Import feature */
+    points_imported = 0;
     cat = 1;
     not_valid = 0;
     feature_count = 0;
     n_outside = 0;
     n_filtered = 0;
     n_class_filtered = 0;
+    n_outside_mask = 0;
+    zrange_filtered = 0;
 
     Points = Vect_new_line_struct();
     Cats = Vect_new_cats_struct();
-    
-    G_important_message(_("Scanning %d points..."), n_features);
+
+    struct CountDecimationControl count_decimation_control;
+
+    count_decimation_init_from_str(&count_decimation_control,
+                                   skip_opt->answer, preserve_opt->answer,
+                                   offset_opt->answer, limit_opt->answer);
+    if (!count_decimation_is_valid(&count_decimation_control))
+        G_fatal_error(_("Settings for count-based decimation are not valid"));
+    /* we don't check if the decimation is noop */
+
+#ifdef HAVE_LONG_LONG_INT
+    G_important_message(_("Scanning %llu points..."), n_features);
+#else
+    G_important_message(_("Scanning %lu points..."), n_features);
+#endif
     while ((LAS_point = LASReader_GetNextPoint(LAS_reader)) != NULL) {
 	double x, y, z;
 
@@ -663,138 +617,87 @@ int main(int argc, char *argv[])
 		continue;
 	    }
 	}
-	if (return_filter != LAS_ALL) {
-	    int return_no = LASPoint_GetReturnNumber(LAS_point);
-	    int n_returns = LASPoint_GetNumberOfReturns(LAS_point);
-	    skipme = 1;
-
-	    switch (return_filter) {
-	    case LAS_FIRST:
-		if (return_no == 1)
-		    skipme = 0;
-		break;
-	    case LAS_MID:
-		if (return_no > 1 && return_no < n_returns)
-		    skipme = 0;
-		break;
-	    case LAS_LAST:
-		if (n_returns > 1 && return_no == n_returns)
-		    skipme = 0;
-		break;
-	    }
-	    
-	    if (skipme) {
-		n_filtered++;
-		continue;
-	    }
-	}
-	if (class_opt->answer) {
-	    point_class = (int) LASPoint_GetClassification(LAS_point);
-	    i = 0;
-	    skipme = TRUE;
-	    while (class_opt->answers[i]) {
-		if (point_class == atoi(class_opt->answers[i])) {
-		    skipme = FALSE;
-		    break;
-		}
-		i++;
-	    }
-	    if (skipme) {
-		n_class_filtered++;
-		continue;
-	    }
-	}
+        if (use_zrange) {
+            if (z < zrange_min || z > zrange_max) {
+                zrange_filtered++;
+                continue;
+            }
+        }
+        int return_n = LASPoint_GetReturnNumber(LAS_point);
+        int n_returns = LASPoint_GetNumberOfReturns(LAS_point);
+        if (return_filter_is_out(&return_filter_struct, return_n, n_returns)) {
+            n_filtered++;
+            continue;
+        }
+        point_class = (int) LASPoint_GetClassification(LAS_point);
+        if (class_filter_is_out(&class_filter, point_class)) {
+            n_class_filtered++;
+            continue;
+        }
+        if (vector_mask_opt->answer) {
+            if (!VectorMask_point_in(&vector_mask, x, y)) {
+                n_outside_mask++;
+                continue;
+            }
+        }
+        if (count_decimation_is_out(&count_decimation_control))
+            continue;
 
 	Vect_append_point(Points, x, y, z);
-	Vect_cat_set(Cats, 1, cat);
+        if (id_layer)
+            Vect_cat_set(Cats, id_layer, cat);
+        if (return_layer) {
+            int return_c = return_to_cat(return_n, n_returns);
+            Vect_cat_set(Cats, return_layer, return_c);
+        }
+        if (class_layer) {
+            /* 0 is not a valid category and
+             * classes 0 and 1 as practically the same */
+            if (point_class == 0)
+                Vect_cat_set(Cats, class_layer, 1);
+            else
+                Vect_cat_set(Cats, class_layer, point_class);
+        }
+        if (have_color && rgb_layer) {
+            /* TODO: if attr table, acquired again, performance difference? */
+            LASColorH LAS_color = LASPoint_GetColor(LAS_point);
+            if (rgb_layer) {
+                int red = LASColor_GetRed(LAS_color);
+                int green = LASColor_GetGreen(LAS_color);
+                int blue = LASColor_GetBlue(LAS_color);
+                int rgb = red;
+                rgb = (rgb << 8) + green;
+                rgb = (rgb << 8) + blue;
+                rgb++;  /* cat 0 is not valid, add one */
+                Vect_cat_set(Cats, rgb_layer, rgb);
+            }
+        }
 	Vect_write_line(&Map, GV_POINT, Points, Cats);
 
 	/* Attributes */
 	if (!notab_flag->answer) {
-	    char class_flag;
-	    int las_class_type, las_class;
-
-	     /* use LASPoint_Validate (LASPointH hPoint) to check for
-	      * return number, number of returns, scan direction, flight line edge,
-	      * classification, scan angle rank */
-	    sprintf(buf, "insert into %s values ( %d", Fi->table, cat);
-	    db_set_string(&sql, buf);
-
-	    /* x, y, z */
-	    sprintf(buf, ", %f", x);
-	    db_append_string(&sql, buf);
-	    sprintf(buf, ", %f", y);
-	    db_append_string(&sql, buf);
-	    sprintf(buf, ", %f", z);
-	    db_append_string(&sql, buf);
-	    /* intensity */
-	    sprintf(buf, ", %d", LASPoint_GetIntensity(LAS_point));
-	    db_append_string(&sql, buf);
-	    /* return number */
-	    sprintf(buf, ", %d", LASPoint_GetReturnNumber(LAS_point));
-	    db_append_string(&sql, buf);
-	    /* number of returns */
-	    sprintf(buf, ",  %d", LASPoint_GetNumberOfReturns(LAS_point));
-	    db_append_string(&sql, buf);
-	    /* scan direction */
-	    sprintf(buf, ", %d",  LASPoint_GetScanDirection(LAS_point));
-	    db_append_string(&sql, buf);
-	    /* flight line edge */
-	    sprintf(buf, ",  %d", LASPoint_GetFlightLineEdge(LAS_point));
-	    db_append_string(&sql, buf);
-	    class_flag = LASPoint_GetClassification(LAS_point);
-	    /* classification type int or char ? */
-	    las_class_type = class_flag / 32;
-	    sprintf(buf, ", \'%s\'", class_type[las_class_type].name);
-	    db_append_string(&sql, buf);
-	    /* classification class int or char ? */
-	    las_class = class_flag % 32;
-	    if (las_class > 13)
-		las_class = 13;
-	    sprintf(buf, ", \'%s\'", class_val[las_class].name);
-	    db_append_string(&sql, buf);
-	    /* GPS time */
-	    if (have_time) {
-		sprintf(buf, ", %f", LASPoint_GetTime(LAS_point));
-		db_append_string(&sql, buf);
-	    }
-	    /* scan angle */
-	    sprintf(buf, ", %d", LASPoint_GetScanAngleRank(LAS_point));
-	    db_append_string(&sql, buf);
-	    /* source id */
-	    sprintf(buf, ", %d", LASPoint_GetPointSourceId(LAS_point));
-	    db_append_string(&sql, buf);
-	    /* user data */
-	    sprintf(buf, ", %d", LASPoint_GetUserData(LAS_point));
-	    db_append_string(&sql, buf);
-	    /* colors */
-	    if (have_color) {
-		LASColorH LAS_color = LASPoint_GetColor(LAS_point);
-		int red = LASColor_GetRed(LAS_color);
-		int green = LASColor_GetGreen(LAS_color);
-		int blue = LASColor_GetBlue(LAS_color);
-
-		sprintf(buf, ", %d, %d, %d", red, green, blue);
-		db_append_string(&sql, buf);
-		sprintf(buf, ", \"%03d:%03d:%03d\"", red, green, blue);
-		db_append_string(&sql, buf);
-	    }
-	    db_append_string(&sql, " )");
-	    G_debug(3, db_get_string(&sql));
-
-	    if (db_execute_immediate(driver, &sql) != DB_OK) {
-		G_fatal_error(_("Cannot insert new row: %s"),
-			      db_get_string(&sql));
-	    }
+        las_point_to_attributes(Fi, driver, cat, LAS_point, x, y, z,
+                                have_time, have_color);
 	}
 
+        if (count_decimation_is_end(&count_decimation_control))
+            break;
+        if (id_layer && cat == GV_CAT_MAX) {
+            cat_max_reached = TRUE;
+            break;
+        }
 	cat++;
+        points_imported++;
     }
     G_percent(n_features, n_features, 1);	/* finish it */
 
     if (!notab_flag->answer) {
 	db_commit_transaction(driver);
 	db_close_database_shutdown_driver(driver);
+    }
+    
+    if (vector_mask_opt->answer) {
+        VectorMask_destroy(&vector_mask);
     }
     
     LASSRS_Destroy(LAS_srs);
@@ -805,17 +708,77 @@ int main(int argc, char *argv[])
     if (!notopo_flag->answer)
 	Vect_build(&Map);
     Vect_close(&Map);
-    
-    G_message(_("%d points imported"),
-              n_features - not_valid - n_outside - n_filtered - n_class_filtered);
+
+    /* can be easily determined only when iterated over all points */
+    if (!count_decimation_control.limit_n && !cat_max_reached
+            && points_imported != n_features
+            - not_valid - n_outside - n_filtered - n_class_filtered
+            - n_outside_mask - count_decimation_control.offset_n_counter
+            - count_decimation_control.n_count_filtered - zrange_filtered)
+        G_warning(_("The underlying libLAS library is at its limits."
+                    " Previously reported counts might have been distorted."
+                    " However, the import itself should be unaffected."));
+
+#ifdef HAVE_LONG_LONG_INT
+    if (count_decimation_control.limit_n) {
+        G_message(_("%llu points imported (limit was %llu)"),
+                  count_decimation_control.limit_n_counter,
+                  count_decimation_control.limit_n);
+    }
+    else {
+        G_message(_("%llu points imported"), points_imported);
+    }
     if (not_valid)
-	G_message(_("%d input points were not valid"), not_valid);
+	G_message(_("%llu input points were not valid"), not_valid);
     if (n_outside)
-	G_message(_("%d input points were outside of the selected area"), n_outside);
+	G_message(_("%llu input points were outside of the selected area"), n_outside);
+    if (n_outside_mask)
+        G_message(_("%llu input points were outside of the area specified by mask"), n_outside_mask);
     if (n_filtered)
-	G_message(_("%d input points were filtered out by return number"), n_filtered);
+	G_message(_("%llu input points were filtered out by return number"), n_filtered);
     if (n_class_filtered)
-        G_message(_("%d input points were filtered out by class number"), n_class_filtered);
+        G_message(_("%llu input points were filtered out by class number"), n_class_filtered);
+    if (zrange_filtered)
+        G_message(_("%llu input points were filtered outsite the range for z coordinate"), zrange_filtered);
+    if (count_decimation_control.offset_n_counter)
+        G_message(_("%llu input points were skipped at the begging using offset"),
+                  count_decimation_control.offset_n_counter);
+    if (count_decimation_control.n_count_filtered)
+        G_message(_("%llu input points were skipped by count-based decimation"),
+                  count_decimation_control.n_count_filtered);
+#else
+    if (count_decimation_control.limit_n)
+        G_message(_("%lu points imported (limit was %d)"),
+                  count_decimation_control.limit_n_counter,
+                  count_decimation_control.limit_n);
+    else
+        G_message(_("%lu points imported"), points_imported);
+    if (not_valid)
+	G_message(_("%lu input points were not valid"), not_valid);
+    if (n_outside)
+	G_message(_("%lu input points were outside of the selected area"), n_outside);
+    if (n_outside_mask)
+        G_message(_("%lu input points were outside of the area specified by mask"), n_outside_mask);
+    if (n_filtered)
+	G_message(_("%lu input points were filtered out by return number"), n_filtered);
+    if (n_class_filtered)
+        G_message(_("%lu input points were filtered out by class number"), n_class_filtered);
+    if (zrange_filtered)
+        G_message(_("%lu input points were filtered outsite the range for z coordinate"), zrange_filtered);
+    if (count_decimation_control.offset_n_counter)
+        G_message(_("%lu input points were skipped at the begging using offset"),
+                  count_decimation_control.offset_n_counter);
+    if (count_decimation_control.n_count_filtered)
+        G_message(_("%lu input points were skipped by count-based decimation"),
+                  count_decimation_control.n_count_filtered);
+    G_message(_("Accuracy of the printed point counts might be limited by your computer architecture."));
+#endif
+    if (count_decimation_control.limit_n)
+        G_message(_("The rest of points was ignored"));
+
+    if (cat_max_reached)
+        G_warning(_("Maximum number of categories reached (%d). Import ended prematurely."
+                    " Try to import without using category as an ID."), GV_CAT_MAX);
 
     /* -------------------------------------------------------------------- */
     /*      Extend current window based on dataset.                         */
@@ -840,72 +803,4 @@ int main(int argc, char *argv[])
     }
 
     exit(EXIT_SUCCESS);
-}
-
-void print_lasinfo(LASHeaderH LAS_header, LASSRSH LAS_srs)
-{
-    char *las_srs_proj4 = LASSRS_GetProj4(LAS_srs);
-    int las_point_format = LASHeader_GetDataFormatId(LAS_header);
-
-    fprintf(stdout, "\nUsing LAS Library Version '%s'\n\n",
-                    LAS_GetFullVersion());
-    fprintf(stdout, "LAS File Version:                  %d.%d\n",
-                    LASHeader_GetVersionMajor(LAS_header),
-                    LASHeader_GetVersionMinor(LAS_header));
-    fprintf(stdout, "System ID:                         '%s'\n",
-                    LASHeader_GetSystemId(LAS_header));
-    fprintf(stdout, "Generating Software:               '%s'\n",
-                    LASHeader_GetSoftwareId(LAS_header));
-    fprintf(stdout, "File Creation Day/Year:            %d/%d\n",
-                    LASHeader_GetCreationDOY(LAS_header),
-		    LASHeader_GetCreationYear(LAS_header));
-    fprintf(stdout, "Point Data Format:                 %d\n",
-                    las_point_format);
-    fprintf(stdout, "Number of Point Records:           %d\n",
-                    LASHeader_GetPointRecordsCount(LAS_header));
-    fprintf(stdout, "Number of Points by Return:        %d %d %d %d %d\n",
-                    LASHeader_GetPointRecordsByReturnCount(LAS_header, 0),
-                    LASHeader_GetPointRecordsByReturnCount(LAS_header, 1),
-                    LASHeader_GetPointRecordsByReturnCount(LAS_header, 2),
-                    LASHeader_GetPointRecordsByReturnCount(LAS_header, 3),
-                    LASHeader_GetPointRecordsByReturnCount(LAS_header, 4));
-    fprintf(stdout, "Scale Factor X Y Z:                %g %g %g\n",
-                    LASHeader_GetScaleX(LAS_header),
-                    LASHeader_GetScaleY(LAS_header),
-                    LASHeader_GetScaleZ(LAS_header));
-    fprintf(stdout, "Offset X Y Z:                      %g %g %g\n",
-                    LASHeader_GetOffsetX(LAS_header),
-                    LASHeader_GetOffsetY(LAS_header),
-                    LASHeader_GetOffsetZ(LAS_header));
-    fprintf(stdout, "Min X Y Z:                         %g %g %g\n",
-                    LASHeader_GetMinX(LAS_header),
-                    LASHeader_GetMinY(LAS_header),
-                    LASHeader_GetMinZ(LAS_header));
-    fprintf(stdout, "Max X Y Z:                         %g %g %g\n",
-                    LASHeader_GetMaxX(LAS_header),
-                    LASHeader_GetMaxY(LAS_header),
-                    LASHeader_GetMaxZ(LAS_header));
-    if (las_srs_proj4 && strlen(las_srs_proj4) > 0) {
-	fprintf(stdout, "Spatial Reference:\n");
-	fprintf(stdout, "%s\n", las_srs_proj4);
-    }
-    else {
-	fprintf(stdout, "Spatial Reference:                 None\n");
-    }
-    
-    fprintf(stdout, "\nData Fields:\n");
-    fprintf(stdout, "  'X'\n  'Y'\n  'Z'\n  'Intensity'\n  'Return Number'\n");
-    fprintf(stdout, "  'Number of Returns'\n  'Scan Direction'\n");
-    fprintf(stdout, "  'Flighline Edge'\n  'Classification'\n  'Scan Angle Rank'\n");
-    fprintf(stdout, "  'User Data'\n  'Point Source ID'\n");
-    if (las_point_format == 1 || las_point_format == 3 || las_point_format == 4 || las_point_format == 5) {
-	fprintf(stdout, "  'GPS Time'\n");
-    }
-    if (las_point_format == 2 || las_point_format == 3 || las_point_format == 5) {
-	fprintf(stdout, "  'Red'\n  'Green'\n  'Blue'\n");
-    }
-    fprintf(stdout, "\n");
-    fflush(stdout);
-
-    return;
 }

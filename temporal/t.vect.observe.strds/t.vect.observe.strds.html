@@ -8,9 +8,8 @@ The first input is a vector map layer with vector points. The second
 input is one or several space time raster datasets (STRDS) that should 
 be sampled over time at the vector point positions. The space time 
 raster dataset will be sampled over its whole temporal extent (from 
-start to end). The range can be adjusted using the temporal where 
-condition <em>t_where</em>. A column name must be specified for each 
-input space time raster dataset.
+start to end). A column name must be specified for each input space
+time raster dataset.
 <p>
 As results  a new space time vector dataset is generated that contains 
 a single (new) vector map that links to as many time stamped attribute 
@@ -34,8 +33,8 @@ The example show how to create a space time vector dataset and a vector
 layer starting from a point vector and a space time raster dataset:
 
 <div class="code"><pre>
-t.vect.observe.strds in=precip_30ynormals_3d strds=tempmean_monthly \
-                     out=precip_stations vect=precip_stations_monthly \
+t.vect.observe.strds input=precip_30ynormals_3d strds=tempmean_monthly \
+                     output=precip_stations vect=precip_stations_monthly \
                      columns=month
 
 t.info precip_stations type=stvds
@@ -84,8 +83,8 @@ t.info precip_stations type=stvds
  | Observation of space time raster dataset(s) tempmean_monthly with vector map precip_30ynormals_3d
  | Command history:
  | # 2014-12-02 00:42:39
- | t.vect.observe.strds in="precip_30ynormals_3d"
- |     strds="tempmean_monthly" out="precip_stations"
+ | t.vect.observe.strds input="precip_30ynormals_3d"
+ |     strds="tempmean_monthly" output="precip_stations"
  |     vect="precip_stations_monthly" columns="month"
  |
  +----------------------------------------------------------------------------+

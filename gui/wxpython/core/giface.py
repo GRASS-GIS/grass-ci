@@ -23,7 +23,7 @@ import grass.script as grass
 from grass.pydispatch.signal import Signal
 
 # to disable Abstract class not referenced
-#pylint: disable=R0921
+# pylint: disable=R0921
 
 
 class Notification:
@@ -51,6 +51,7 @@ class Layer(object):
 
 
 class LayerList(object):
+
     def GetSelectedLayers(self, checkedOnly=True):
         """Returns list of selected layers.
 
@@ -77,7 +78,7 @@ class LayerList(object):
 
         Launches property dialog if needed (raster, vector, etc.)
 
-        :param ltype: layer type (raster, vector, 3d-raster, ...)
+        :param ltype: layer type (raster, vector, raster_3d, ...)
         :param name: layer name
         :param checked: if True layer is checked
         :param opacity: layer opacity level
@@ -116,6 +117,7 @@ class GrassInterface:
 
         The GrassInterface process is not finished.
     """
+
     def RunCmd(self, *args, **kwargs):
         """Executes a command.
         """
@@ -131,7 +133,8 @@ class GrassInterface:
         """
         raise NotImplementedError()
 
-    def WriteCmdLog(self, text, pid=None, notification=Notification.MAKE_VISIBLE):
+    def WriteCmdLog(self, text, pid=None,
+                    notification=Notification.MAKE_VISIBLE):
         """Writes message related to start or end of the command.
         """
         raise NotImplementedError()
@@ -202,6 +205,7 @@ class GrassInterface:
 
 class StandaloneGrassInterface():
     """@implements GrassInterface"""
+
     def __init__(self):
 
         # Signal when some map is created or updated by a module.
@@ -242,11 +246,18 @@ class StandaloneGrassInterface():
         grass.percent(event.value, 100, 1)
         event.Skip()
 
-    def RunCmd(self, command, compReg=True, skipInterface=False,
-               onDone=None, onPrepare=None, userData=None, notification=Notification.MAKE_VISIBLE):
-        self._gconsole.RunCmd(command=command, compReg=compReg,
-                              skipInterface=skipInterface, onDone=onDone,
-                              onPrepare=onPrepare, userData=userData, notification=notification)
+    def RunCmd(self, command, compReg=True, env=None, skipInterface=False,
+               onDone=None, onPrepare=None, userData=None,
+               notification=Notification.MAKE_VISIBLE):
+        self._gconsole.RunCmd(
+            command=command,
+            compReg=compReg,
+            env=env,
+            skipInterface=skipInterface,
+            onDone=onDone,
+            onPrepare=onPrepare,
+            userData=userData,
+            notification=notification)
 
     def Help(self, entry):
         self._gconsole.RunCmd(['g.manual', 'entry=%s' % entry])
@@ -255,7 +266,8 @@ class StandaloneGrassInterface():
                  notification=Notification.HIGHLIGHT):
         self._write(grass.message, text)
 
-    def WriteCmdLog(self, text, pid=None, notification=Notification.MAKE_VISIBLE):
+    def WriteCmdLog(self, text, pid=None,
+                    notification=Notification.MAKE_VISIBLE):
         if pid:
             text = '(' + str(pid) + ') ' + text
         self._write(grass.message, text)

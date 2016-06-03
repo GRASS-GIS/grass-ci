@@ -28,14 +28,21 @@ for details.
 
 :author: Soeren Gebbert
 """
+#import traceback
 import os
 # i18N
 import gettext
 gettext.install('grasslibs', os.path.join(os.getenv("GISBASE"), 'locale'))
 
+try:
+    from builtins import long
+except ImportError:
+    # python3
+    long = int
+
 import grass.script as gscript
 from datetime import datetime
-from c_libraries_interface import *
+from .c_libraries_interface import *
 from grass.pygrass import messages
 # Import all supported database backends
 # Ignore import errors since they are checked later
@@ -60,16 +67,20 @@ def profile_function(func):
     do_profiling = os.getenv("GRASS_TGIS_PROFILE")
 
     if do_profiling is "True" or do_profiling is "1":
-        import cProfile, pstats, StringIO
+        import cProfile, pstats
+        try:
+            import StringIO as io
+        except ImportError:
+            import io
         pr = cProfile.Profile()
         pr.enable()
         func()
         pr.disable()
-        s = StringIO.StringIO()
+        s = io.StringIO()
         sortby = 'cumulative'
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
-        print s.getvalue()
+        print(s.getvalue())
     else:
         func()
 
@@ -446,6 +457,10 @@ def get_available_temporal_mapsets():
     for mapset in mapsets:
         driver = c_library_interface.get_driver_name(mapset)
         database = c_library_interface.get_database_name(mapset)
+        
+        message_interface.debug(1, "get_available_temporal_mapsets: "\
+                                   "\n  mapset %s\n  driver %s\n  database %s"%(mapset,
+                                   driver, database))
 
         if driver and database:
             # Check if the temporal sqlite database exists
@@ -458,7 +473,7 @@ def get_available_temporal_mapsets():
             # exists
             if driver == "sqlite" and not os.path.exists(database):
                 message_interface.warning("Temporal database connection defined as:\n" + \
-                                          database + "\nBut database file does not exists.")
+                                          database + "\nBut database file does not exist.")
 
     return tgis_mapsets
 
@@ -469,7 +484,7 @@ def init(raise_fatal_error=False):
     """This function set the correct database backend from GRASS environmental
        variables and creates the grass temporal database structure for raster,
        vector and raster3d maps as well as for the space-time datasets strds,
-       str3ds and stvds in case it does not exists.
+       str3ds and stvds in case it does not exist.
 
        Several global variables are initiated and the messenger and C-library
        interface subprocesses are spawned.
@@ -548,19 +563,20 @@ def init(raise_fatal_error=False):
     _init_tgis_c_library_interface()
     msgr = get_tgis_message_interface()
     msgr.debug(1, "Initiate the temporal database")
+                  #"\n  traceback:%s"%(str("  \n".join(traceback.format_stack()))))
 
     ciface = get_tgis_c_library_interface()
     driver_string = ciface.get_driver_name()
     database_string = ciface.get_database_name()
 
     # Set the mapset check and the timestamp write
-    if grassenv.has_key("TGIS_DISABLE_MAPSET_CHECK"):
+    if "TGIS_DISABLE_MAPSET_CHECK" in grassenv:
         if grassenv["TGIS_DISABLE_MAPSET_CHECK"] == "True" or \
            grassenv["TGIS_DISABLE_MAPSET_CHECK"] == "1":
             enable_mapset_check = False
             msgr.warning("TGIS_DISABLE_MAPSET_CHECK is True")
 
-    if grassenv.has_key("TGIS_DISABLE_TIMESTAMP_WRITE"):
+    if "TGIS_DISABLE_TIMESTAMP_WRITE" in grassenv:
         if grassenv["TGIS_DISABLE_TIMESTAMP_WRITE"] == "True" or \
            grassenv["TGIS_DISABLE_TIMESTAMP_WRITE"] == "1":
             enable_timestamp_write = False
@@ -753,7 +769,7 @@ def create_temporal_database(dbif):
     msgr.message(_("Creating temporal database: %s" % (str(tgis_database_string))))
 
     if tgis_backend == "sqlite":
-        # We need to create the sqlite3 database path if it does not exists
+        # We need to create the sqlite3 database path if it does not exist
         tgis_dir = os.path.dirname(tgis_database_string)
         if not os.path.exists(tgis_dir):
             try:
@@ -1048,9 +1064,15 @@ class DBConnection(object):
         if dbstring is None:
             global tgis_database_string
             self.dbstring = tgis_database_string
+        
+        self.dbstring = dbstring
 
         self.msgr = get_tgis_message_interface()
-        self.msgr.debug(1, "SQLDatabaseInterfaceConnection constructor")
+        self.msgr.debug(1, "DBConnection constructor:"\
+                           "\n  backend: %s"\
+                           "\n  dbstring: %s"%(backend, self.dbstring))
+                           #"\n  traceback:%s"%(backend, self.dbstring, 
+                           #str("  \n".join(traceback.format_stack()))))
 
     def __del__(self):
         if self.connected is True:
@@ -1149,9 +1171,9 @@ class DBConnection(object):
                 if self.connected:
                     try:
                         return self.cursor.mogrify(sql, args)
-                    except:
-                        print sql, args
-                        raise
+                    except Exception as exc:
+                        print(sql, args)
+                        raise exc
                 else:
                     self.connect()
                     statement = self.cursor.mogrify(sql, args)

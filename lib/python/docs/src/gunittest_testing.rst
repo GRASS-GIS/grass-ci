@@ -25,12 +25,15 @@ things such as creation of GRASS-aware HTML test reports,
 or running of test in the way that process terminations potentially
 caused by C library functions does not influence the main testing process.
 
+Some tests will run without any data but many tests require
+the small (basic) version of GRASS GIS sample Location for North Carolina
+(see `GRASS GIS sample data`).
 
 Basic example
 -------------
 
 If you are writing a test of a GRASS module, 
-create a Python script with the content derived from the example bellow.
+create a Python script with the content derived from the example below.
 When using existing existing maps, suppose you are in North Carolina SPM
 GRASS sample location.
 
@@ -716,3 +719,4 @@ Further reading
 .. _1038: https://scan.coverity.com/projects/1038
 .. _Cppcheck: http://cppcheck.sourceforge.net/
 .. _sandbox: https://svn.osgeo.org/grass/sandbox/wenzeslaus/grass_py_static_check.py
+.. _GRASS GIS sample data: https://grass.osgeo.org/download/sample-data

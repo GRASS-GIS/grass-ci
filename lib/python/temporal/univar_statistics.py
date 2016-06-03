@@ -7,8 +7,9 @@ Usage:
 
     import grass.temporal as tgis
 
-    tgis.print_gridded_dataset_univar_statistics(type, input, where, extended, no_header, fs)
+    tgis.print_gridded_dataset_univar_statistics(type, input, output, where, extended, no_header, fs, rast_region)
 
+..
 
 (C) 2012-2013 by the GRASS Development Team
 This program is free software under the GNU General Public
@@ -17,23 +18,29 @@ for details.
 
 :authors: Soeren Gebbert
 """
+from __future__ import print_function
 
-from open_stds import *
+from .open_stds import *
 import grass.script as gscript
 
 ###############################################################################
 
 
-def print_gridded_dataset_univar_statistics(type, input, where, extended,
-                                            no_header=False, fs="|"):
+def print_gridded_dataset_univar_statistics(type, input, output, where, extended,
+                                            no_header=False, fs="|",
+                                            rast_region=False):
     """Print univariate statistics for a space time raster or raster3d dataset
 
        :param type: Must be "strds" or "str3ds"
        :param input: The name of the space time dataset
+       :param output: Name of the optional output file, if None stdout is used
        :param where: A temporal database where statement
        :param extended: If True compute extended statistics
        :param no_header: Supress the printing of column names
        :param fs: Field separator
+       :param rast_region: If set True ignore the current region settings
+              and use the raster map regions for univar statistical calculation.
+              Only available for strds.
     """
 
     # We need a database interface
@@ -41,6 +48,9 @@ def print_gridded_dataset_univar_statistics(type, input, where, extended,
     dbif.connect()
 
     sp = open_old_stds(input, type, dbif)
+
+    if output is not None:
+        out_file = open(output, "w")
 
     rows = sp.get_registered_maps(
         "id,start_time,end_time", where, "start_time", dbif)
@@ -61,7 +71,10 @@ def print_gridded_dataset_univar_statistics(type, input, where, extended,
             string += fs + "first_quartile" + fs + "median" + fs
             string += "third_quartile" + fs + "percentile_90"
 
-        print string
+        if output is None:
+            print(string)
+        else:
+            out_file.write(string + "\n")
 
     for row in rows:
         string = ""
@@ -73,6 +86,8 @@ def print_gridded_dataset_univar_statistics(type, input, where, extended,
 
         if extended is True:
             flag += "e"
+        if type == "strds" and rast_region is True:
+            flag += "r"
 
         if type == "strds":
             stats = gscript.parse_command("r.univar", map=id, flags=flag)
@@ -97,19 +112,28 @@ def print_gridded_dataset_univar_statistics(type, input, where, extended,
         if extended is True:
             string += fs + str(stats["first_quartile"]) + fs + str(stats["median"])
             string += fs + str(stats["third_quartile"]) + fs + str(stats["percentile_90"])
-        print string
+
+        if output is None:
+            print(string)
+        else:
+            out_file.write(string + "\n")
 
     dbif.close()
+
+    if output is not None:
+        out_file.close()
+
 
 ###############################################################################
 
 
-def print_vector_dataset_univar_statistics(input, twhere, layer, type, column,
+def print_vector_dataset_univar_statistics(input, output, twhere, layer, type, column,
                                            where, extended, no_header=False,
                                            fs="|"):
     """Print univariate statistics for a space time vector dataset
 
        :param input: The name of the space time dataset
+       :param output: Name of the optional output file, if None stdout is used
        :param twhere: A temporal database where statement
        :param layer: The layer number used in case no layer is present
               in the temporal dataset
@@ -124,6 +148,9 @@ def print_vector_dataset_univar_statistics(input, twhere, layer, type, column,
     # We need a database interface
     dbif = SQLDatabaseInterfaceConnection()
     dbif.connect()
+
+    if output is not None:
+        out_file = open(output, "w")
 
     mapset = get_current_mapset()
 
@@ -164,7 +191,10 @@ def print_vector_dataset_univar_statistics(input, twhere, layer, type, column,
                 string += fs + "first_quartile" + fs + "median" + fs + \
                     "third_quartile" + fs + "percentile_90"
 
-        print string
+        if output is None:
+            print(string)
+        else:
+            out_file.write(string + "\n")
 
     for row in rows:
         id = row["name"] + "@" + row["mapset"]
@@ -224,6 +254,12 @@ def print_vector_dataset_univar_statistics(input, twhere, layer, type, column,
                 else:
                     string += fs + fs + fs + fs
 
-        print string
+        if output is None:
+            print(string)
+        else:
+            out_file.write(string + "\n")
 
     dbif.close()
+
+    if output is not None:
+        out_file.close()

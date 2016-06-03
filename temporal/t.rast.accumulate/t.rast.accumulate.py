@@ -19,6 +19,7 @@
 #% keyword: temporal
 #% keyword: accumulation
 #% keyword: raster
+#% keyword: time
 #%end
 
 #%option G_OPT_STRDS_INPUT
@@ -92,16 +93,25 @@
 #%end
 
 #%option
-#% key: limits
-#% type: double
-#% key_desc: lower,upper
-#% description: Use these limits in case lower and/or upper input  space time raster datasets are not defined
+#% key: suffix
+#% type: string
+#% description: Suffix to add at basename: set 'gran' for granularity, 'time' for the full time format, 'num' for numerical suffix with a specific number of digits (default %05)
+#% answer: gran
 #% required: no
 #% multiple: no
 #%end
 
 #%option
-#% key: shift
+#% key: limits
+#% type: double
+#% key_desc: lower,upper
+#% description: Use these limits in case lower and/or upper input  space time raster datasets are not defined or contain NULL values
+#% required: yes
+#% multiple: no
+#%end
+
+#%option
+#% key: scale
 #% type: double
 #% description: Scale factor for input space time raster dataset
 #% required: no
@@ -109,7 +119,7 @@
 #%end
 
 #%option
-#% key: scale
+#% key: shift
 #% type: double
 #% description: Shift factor for input space time raster dataset
 #% required: no
@@ -136,6 +146,7 @@
 #% key: r
 #% description: Reverse time direction in cyclic accumulation
 #%end
+from __future__ import print_function
 
 import grass.script as grass
 import grass.temporal as tgis
@@ -162,6 +173,7 @@ def main():
     granularity = options["granularity"]
     register_null = flags["n"]
     reverse = flags["r"]
+    time_suffix = options["suffix"]
 
     # Make sure the temporal database exists
     tgis.init()
@@ -345,7 +357,7 @@ def main():
         # Aggregate
         num_maps = len(gran_list)
 
-        for i in xrange(num_maps):
+        for i in range(num_maps):
             if reverse:
                 map = gran_list[num_maps - i - 1]
             else:
@@ -368,7 +380,16 @@ def main():
                 continue
 
             # New output map
-            output_map_name = "%s_%i" % (base, count)
+            if input_strds.get_temporal_type() == 'absolute' and time_suffix == 'gran':
+                suffix = tgis.create_suffix_from_datetime(map.temporal_extent.get_start_time(),
+                                                          input_strds.get_granularity())
+                output_map_name = "{ba}_{su}".format(ba=base, su=suffix)
+            elif input_strds.get_temporal_type() == 'absolute' and time_suffix == 'time':
+                suffix = tgis.create_time_suffix(map)
+                output_map_name = "{ba}_{su}".format(ba=base, su=suffix)
+            else:
+                output_map_name = tgis.create_numeric_suffic(base, count, time_suffix)
+
             output_map_id = map.build_id(output_map_name, mapset)
             output_map = input_strds.get_new_map_instance(output_map_id)
 
@@ -437,7 +458,7 @@ def main():
             if method:
                 accmod.inputs["method"].value = method
 
-            print accmod
+            print(accmod)
             accmod.run()
 
             if accmod.popen.returncode != 0:

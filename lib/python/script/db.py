@@ -10,7 +10,7 @@ Usage:
     grass.db_describe(table)
     ...
 
-(C) 2008-2009, 2012 by the GRASS Development Team
+(C) 2008-2015 by the GRASS Development Team
 This program is free software under the GNU General Public
 License (>=v2). Read the file COPYING that comes with GRASS
 for details.
@@ -104,9 +104,13 @@ def db_connection(force=False):
 
     :return: parsed output of db.connect
     """
-    nuldev = file(os.devnull, 'w')
-    conn = parse_command('db.connect', flags='g', stderr=nuldev)
-    nuldev.close()
+    try:
+        nuldev = file(os.devnull, 'w')
+        conn = parse_command('db.connect', flags='g', stderr=nuldev)
+        nuldev.close()
+    except CalledModuleError:
+        conn = None
+    
     if not conn and force:
         run_command('db.connect', flags='c')
         conn = parse_command('db.connect', flags='g')
@@ -159,8 +163,7 @@ def db_select(sql=None, filename=None, table=None, **args):
         fatal(_("Fetching data failed"))
 
     ofile = open(fname)
-    result = map(lambda x: tuple(x.rstrip(os.linesep).split(args['sep'])),
-                 ofile.readlines())
+    result = [tuple(x.rstrip(os.linesep).split(args['sep'])) for x in ofile.readlines()]
     ofile.close()
     try_remove(fname)
 
@@ -186,7 +189,7 @@ def db_table_in_vector(table):
     used = []
     vects = list_strings('vect')
     for vect in vects:
-        for f in vector_db(vect, stderr=nuldev).itervalues():
+        for f in vector_db(vect, stderr=nuldev).values():
             if not f:
                 continue
             if f['table'] == table:
@@ -196,3 +199,23 @@ def db_table_in_vector(table):
         return used
     else:
         return None
+
+def db_begin_transaction(driver):
+    """Begin transaction.
+
+    :return: SQL command as string
+    """
+    if driver in ('sqlite', 'pg'):
+        return 'BEGIN'
+    if driver == 'mysql':
+        return 'START TRANSACTION'
+    return ''
+
+def db_commit_transaction(driver):
+    """Commit transaction.
+
+    :return: SQL command as string
+    """
+    if driver in ('sqlite', 'pg', 'mysql'):
+        return 'COMMIT'
+    return ''

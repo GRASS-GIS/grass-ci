@@ -17,6 +17,10 @@ import os
 class TestRasterExtraction(TestCase):
 
     mapsets_to_remove = []
+    outfile = 'vectlist.txt'
+    gisenv = SimpleModule('g.gisenv', get='MAPSET')
+    TestCase.runModule(gisenv, expecting_stdout=True)
+    old_mapset = gisenv.outputs.stdout.strip()
 
     @classmethod
     def setUpClass(cls):
@@ -31,12 +35,19 @@ class TestRasterExtraction(TestCase):
             cls.runModule("v.random", output="a1", npoints=20)
             cls.runModule("v.random", output="a2", npoints=20)
             cls.runModule("v.random", output="a3", npoints=20)
-
+            # Create the temporal database
+            cls.runModule("t.connect", flags="d")
+            cls.runModule("t.info", flags="s")
             cls.runModule("t.create", type="stvds", temporaltype="absolute",
                           output="A", title="A testvect", description="A testvect")
             cls.runModule("t.register", flags="i", type="vector", input="A",
                           maps="a1,a2,a3",
                           start="2001-01-01", increment="%i months" % i)
+
+        # Add the new mapsets to the search path
+        for mapset in cls.mapsets_to_remove:
+            cls.runModule("g.mapset", mapset=mapset)
+            cls.runModule("g.mapsets", operation="add", mapset=','.join(cls.mapsets_to_remove))
 
     @classmethod
     def tearDownClass(cls):
@@ -46,6 +57,7 @@ class TestRasterExtraction(TestCase):
         gisenv = SimpleModule('g.gisenv', get='LOCATION_NAME')
         cls.runModule(gisenv, expecting_stdout=True)
         location = gisenv.outputs.stdout.strip()
+        cls.runModule("g.mapset", mapset=cls.old_mapset)
         for mapset_name in cls.mapsets_to_remove:
             mapset_path = os.path.join(gisdbase, location, mapset_name)
             silent_rmtree(mapset_path)
@@ -68,6 +80,20 @@ class TestRasterExtraction(TestCase):
 
         for a, b in zip(list_string.split("\n"), out.split("\n")):
             self.assertEqual(a.strip(), b.strip())
+
+        t_list = SimpleModule(
+            "t.list", quiet=True,
+            columns=["name", "mapset,start_time", "end_time", "number_of_maps"],
+            type="stvds", where='name = "A"', output=self.outfile)
+        self.assertModule(t_list)
+        self.assertFileExists(self.outfile)
+        with open(self.outfile, 'r') as f:
+            read_data = f.read()
+        for a, b in zip(list_string.split("\n"), read_data.split("\n")):
+            self.assertEqual(a.strip(), b.strip())
+        #self.assertLooksLike(reference=read_data, actual=list_string)
+        if os.path.isfile(self.outfile):
+            os.remove(self.outfile)
 
     def test_tvect_list(self):
         self.runModule("g.mapset", mapset="testvect1")
@@ -131,6 +157,18 @@ class TestRasterExtraction(TestCase):
 
         for a, b in zip(list_string.split("\n"), out.split("\n")):
             self.assertEqual(a.strip(), b.strip())
+
+        trast_list = SimpleModule("t.vect.list", quiet=True, flags="s",
+                                  columns=["name", "mapset", "start_time", "end_time"],
+                                  input="A@testvect4", output=self.outfile)
+        self.assertModule(trast_list)
+        self.assertFileExists(self.outfile)
+        with open(self.outfile, 'r') as f:
+            read_data = f.read()
+        for a, b in zip(list_string.split("\n"), read_data.split("\n")):
+            self.assertEqual(a.strip(), b.strip())
+        if os.path.isfile(self.outfile):
+            os.remove(self.outfile)
 
     def test_stvds_info(self):
         self.runModule("g.mapset", mapset="testvect4")

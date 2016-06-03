@@ -20,6 +20,14 @@ for details.
 import re
 import types
 import string
+
+try:
+    from builtins import unicode
+    bytes = str
+except ImportError:
+    # python3
+    unicode = str
+
 try:
     import xml.etree.ElementTree as etree
 except ImportError:
@@ -32,8 +40,8 @@ if hasattr(etree, 'ParseError'):
 else:
     ETREE_EXCEPTIONS = (expat.ExpatError)
 
-from utils import decode, split
-from core import *
+from .utils import encode, decode, split
+from .core import *
 
 
 class grassTask:
@@ -152,10 +160,10 @@ class grassTask:
                 val = p[element]
                 if val is None:
                     continue
-                if type(val) in (types.ListType, types.TupleType):
+                if isinstance(val, (list, tuple)):
                     if value in val:
                         return p
-                elif type(val) ==  types.StringType:
+                elif isinstance(val, (bytes, unicode)):
                     if p[element][:len(value)] ==  value:
                         return p
                 else:
@@ -165,8 +173,8 @@ class grassTask:
             pass
 
         if raiseError:
-            raise ValueError, _("Parameter element '%(element)s' not found: '%(value)s'") % \
-                { 'element' : element, 'value' : value }
+            raise ValueError(_("Parameter element '%(element)s' not found: '%(value)s'") % \
+                { 'element' : element, 'value' : value })
         else:
             return None
 
@@ -180,7 +188,7 @@ class grassTask:
         for f in self.flags:
             if f['name'] == aFlag:
                 return f
-        raise ValueError, _("Flag not found: %s") % aFlag
+        raise ValueError(_("Flag not found: %s") % aFlag)
 
     def get_cmd_error(self):
         """Get error string produced by get_cmd(ignoreErrors = False)
@@ -200,7 +208,7 @@ class grassTask:
                     if not desc:
                         desc = p['description']
                     errorList.append(_("Parameter '%(name)s' (%(desc)s) is missing.") % \
-                                     {'name': p['name'], 'desc': desc})
+                                     {'name': p['name'], 'desc': encode(desc)})
 
         return errorList
 
@@ -242,7 +250,7 @@ class grassTask:
 
         errList = self.get_cmd_error()
         if ignoreErrors is False and errList:
-            raise ValueError, '\n'.join(errList)
+            raise ValueError('\n'.join(errList))
 
         return cmd
 
@@ -492,12 +500,12 @@ def get_interface_description(cmd):
                 del sys.path[0]  # remove gui/scripts from the path
 
         if p.returncode != 0:
-            raise ScriptError, _("Unable to fetch interface description for command '%(cmd)s'."
-                                 "\n\nDetails: %(det)s") % {'cmd': cmd, 'det': cmderr}
+            raise ScriptError(_("Unable to fetch interface description for command '%(cmd)s'."
+                                 "\n\nDetails: %(det)s") % {'cmd': cmd, 'det': cmderr})
 
     except OSError as e:
-        raise ScriptError, _("Unable to fetch interface description for command '%(cmd)s'."
-                             "\n\nDetails: %(det)s") % {'cmd': cmd, 'det': e}
+        raise ScriptError(_("Unable to fetch interface description for command '%(cmd)s'."
+                             "\n\nDetails: %(det)s") % {'cmd': cmd, 'det': e})
 
     desc = cmdout.replace('grass-interface.dtd',
                           os.path.join(os.getenv('GISBASE'),
@@ -509,6 +517,9 @@ def get_interface_description(cmd):
 def parse_interface(name, parser=processTask, blackList=None):
     """Parse interface of given GRASS module
 
+    The *name* is either GRASS module name (of a module on path) or
+    a full or relative path to an executable.
+
     :param str name: name of GRASS module to be parsed
     :param parser:
     :param blackList:
@@ -518,7 +529,15 @@ def parse_interface(name, parser=processTask, blackList=None):
     except ETREE_EXCEPTIONS as error:
         raise ScriptError(_("Cannot parse interface description of"
             "<{name}> module: {error}").format(name=name, error=error))
-    return parser(tree, blackList=blackList).get_task()
+    task = parser(tree, blackList=blackList).get_task()
+    # if name from interface is different than the originally
+    # provided name, then the provided name is likely a full path needed
+    # to actually run the module later
+    # (processTask uses only the XML which does not contain the original
+    # path used to execute the module)
+    if task.name != name:
+        task.path = name
+    return task
 
 
 def command_info(cmd):
@@ -613,7 +632,7 @@ def cmdtuple_to_list(cmd):
         if flag in cmd[1] and cmd[1][flag] is True:
             cmdList.append('--' + flag)
 
-    for k, v in cmd[1].iteritems():
+    for k, v in cmd[1].items():
         if k in ('flags', 'help', 'verbose', 'quiet', 'overwrite'):
             continue
         cmdList.append('%s=%s' % (k, v))

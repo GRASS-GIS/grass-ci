@@ -64,7 +64,8 @@ class Popen(subprocess.Popen):
             and kwargs.get('executable') is None):
             cmd = shutil_which(args[0])
             if cmd is None:
-                raise OSError
+                raise OSError(_("Cannot find the executable {}")
+                              .format(args[0]))
             args = [cmd] + args[1:]
             name, ext = os.path.splitext(cmd)
             if ext.lower() not in self._builtin_exts:
@@ -706,6 +707,9 @@ def parser():
     dictionaries containing option/flag values, keyed by lower-case
     option/flag names. The values in "options" are strings, those in
     "flags" are Python booleans.
+
+    Overview table of parser standard options:
+    https://grass.osgeo.org/grass71/manuals/parser_standard_options.html
     """
     if not os.getenv("GISBASE"):
         print("You must be in GRASS GIS to run this program.", file=sys.stderr)
@@ -729,7 +733,8 @@ def parser():
     lines = s.split(b'\0')
 
     if not lines or lines[0] != b"@ARGS_PARSED@":
-        sys.stdout.write(s)
+        stdout = os.fdopen(sys.stdout.fileno(), 'wb')
+        stdout.write(s)
         sys.exit(p.returncode)
     return _parse_opts(lines[1:])
 
@@ -1521,13 +1526,20 @@ def version():
 _debug_level = None
 
 
-def debug_level():
+def debug_level(force=False):
     global _debug_level
-    if _debug_level is not None:
+    if not force and _debug_level is not None:
         return _debug_level
     _debug_level = 0
     if find_program('g.gisenv', '--help'):
-        _debug_level = int(gisenv().get('DEBUG', 0))
+        try:
+            _debug_level = int(gisenv().get('DEBUG', 0))
+            if _debug_level < 0 or _debug_level > 5:
+                raise ValueError(_("Debug level {}").format(_debug_level))
+        except ValueError as e:
+            _debug_level = 0
+            sys.stderr.write(_("WARNING: Ignoring unsupported debug level (must be >=0 and <=5). {}\n").format(e))
+            
     return _debug_level
 
 

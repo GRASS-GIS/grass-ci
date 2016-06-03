@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     G_add_keyword(_("topology"));
     G_add_keyword(_("geometry"));
     module->label = _("Creates topology for vector map.");
-    module->description = _("Optionaly also checks for topological errors.");
+    module->description = _("Optionally also checks for topological errors.");
 
     map_opt = G_define_standard_option(G_OPT_V_MAP);
     map_opt->label = NULL;
@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
     opt->multiple = YES;
     opt->answer = "build";
     opt->description =
-	_("Build topology or dump topology or indeces to standard output");
+	_("Build topology or dump topology or indices to standard output");
     opt_desc = NULL;
     G_asprintf(&opt_desc,
 	       "build;%s;dump;%s;sdump;%s;cdump;%s;fdump;%s",

@@ -91,7 +91,7 @@ int set_datum(char *datum)
  *        co-ordinate system definition
  * 
  * \param datumtrans  Index number of parameter set to use, 0 to leave
- *                    unspecifed (or remove specific parameters, leaving just
+ *                    unspecified (or remove specific parameters, leaving just
  *                    the datum name), -1 to list the available parameter
  *                    sets for this datum and exit.
  *
@@ -130,8 +130,10 @@ int set_datumtrans(int datumtrans, int force)
 	    G_debug(3, "set_datumtrans(): datum transform terms found "
 		    "with %d options", paramsets);
 
-	    if (status == 1 && paramsets > 1)
-		/* Parameters are missing and there is a choice to be made */
+	    if (paramsets > 1 && (status == 1 || datumtrans != 0))
+		/* Parameters are missing and there is a choice to be
+                   made / or / user asked to print datum
+                   transformation parameters */
 		force = 1;
 
 	}

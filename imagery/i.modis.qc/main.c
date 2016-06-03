@@ -96,6 +96,17 @@ CELL mod13A2g (CELL pixel);
 CELL mod13A2h (CELL pixel);
 CELL mod13A2i (CELL pixel);
 
+    /* MOD13Q1 Products (250m, 16-Days) */
+CELL mod13Q1a (CELL pixel);
+CELL mod13Q1b (CELL pixel);
+CELL mod13Q1c (CELL pixel);
+CELL mod13Q1d (CELL pixel);
+CELL mod13Q1e (CELL pixel);
+CELL mod13Q1f (CELL pixel);
+CELL mod13Q1g (CELL pixel);
+CELL mod13Q1h (CELL pixel);
+CELL mod13Q1i (CELL pixel);
+
     /* MCD43B2 Products (1km, 8-Days)*/
 
 /* SDS: BRDF_Albedo_Ancilliary */
@@ -140,6 +151,7 @@ int main(int argc, char *argv[])
     G_add_keyword(_("reflectance"));
     G_add_keyword(_("land surface temperature"));
     G_add_keyword(_("vegetation"));
+    G_add_keyword(_("satellite"));
     G_add_keyword(_("MODIS"));
     module->description =
 	_("Extracts quality control parameters from MODIS QC layers.");
@@ -171,7 +183,8 @@ int main(int argc, char *argv[])
 	       "mod11A2;%s;"
 	       "mod13A2;%s;"
 	       "mcd43B2;%s;"
-	       "mcd43B2q;%s",
+	       "mcd43B2q;%s;"
+	       "mod13Q1;%s;",
 	       _("surf. refl. 250m 8-days"),
 	       _("surf. refl. 500m 8-days"),
 	       _("surf. refl. 500m 8-days, State QA"),
@@ -182,9 +195,10 @@ int main(int argc, char *argv[])
 	       _("LST 1km 8-days (Day/Night)"),
 	       _("VI 1km 16-days"),
 	       _("Brdf-Albedo Quality (Ancillary SDS) 1km 8-days"),
-	       _("Brdf-Albedo Quality (BRDF SDS) 1km 8-days"));
+	       _("Brdf-Albedo Quality (BRDF SDS) 1km 8-days"),
+	       _("VI 250m 16-days"));
     productname->descriptions = desc_productname;
-    productname->options = "mod09Q1,mod09A1,mod09A1s,mod09CMG,mod09CMGs,mod09CMGi,mod11A1,mod11A2,mod13A2,mcd43B2,mcd43B2q";
+    productname->options = "mod09Q1,mod09A1,mod09A1s,mod09CMG,mod09CMGs,mod09CMGi,mod11A1,mod11A2,mod13A2,mcd43B2,mcd43B2q,mod13Q1";
     productname->answer = "mod13A2";
     
     qcname = G_define_option();
@@ -245,7 +259,16 @@ int main(int argc, char *argv[])
 	       "platform;%s;"
 	       "land_water;%s;"
 	       "sun_z_angle_at_local_noon;%s;"
-	       "brdf_correction_performed;%s",
+	       "brdf_correction_performed;%s;"
+	       "modland_qa;%s;"
+	       "vi_usefulness;%s;"
+	       "aerosol_quantity;%s;"
+	       "pixel_adjacent_to_cloud;%s;"
+	       "brdf_correction_performed;%s;"
+	       "mixed_clouds;%s;"
+	       "land_water;%s;"
+	       "possible_snow_ice;%s;"
+	       "possible_shadow;%s;",
 	       _("mod09: Adjacency Correction"),
 	       _("mod09: Atmospheric Correction"),
 	       _("mod09: Cloud State"),
@@ -297,9 +320,18 @@ int main(int argc, char *argv[])
 	       _("mcd43B2: Quality of BRDF correction performed"),
 	       _("mcd43B2: Quality of BRDF correction performed"),
 	       _("mcd43B2: Quality of BRDF correction performed"),
-	       _("mcd43B2q: Quality of BRDF correction performed"));
+	       _("mcd43B2q: Quality of BRDF correction performed"),
+	       _("mod13Q1: MODIS Land General Quality Assessment"),
+	       _("mod13Q1: Quality estimation of the pixel"),
+	       _("mod13Q1: Quantity range of Aerosol"),
+	       _("mod13Q1: if pixel is a cloud neighbour"),
+	       _("mod13Q1: if BRDF correction performed"),
+	       _("mod13Q1: if pixel mixed with clouds"),
+	       _("mod13Q1: separate land from various water objects"),
+	       _("mod13Q1: if snow/ice present in pixel"),
+	       _("mod13Q1: if shadow is present in pixel"));
     qcname->descriptions = desc_qcname;
-    qcname->options = "adjcorr,atcorr,cloud,data_quality,diff_orbit_from_500m,modland_qa,mandatory_qa_11A1,data_quality_flag_11A1,emis_error_11A1,lst_error_11A1,data_quality_flag_11A2,emis_error_11A2,mandatory_qa_11A2,lst_error_11A2,aerosol_quantity,brdf_correction_performed,cirrus_detected,cloud_shadow,cloud_state,internal_cloud_algorithm,internal_fire_algorithm,internal_snow_mask,land_water,mod35_snow_ice,pixel_adjacent_to_cloud,icm_cloudy,icm_clear,icm_high_clouds,icm_low_clouds,icm_snow,icm_fire,icm_sun_glint,icm_dust,icm_cloud_shadow,icm_pixel_is_adjacent_to_cloud,icm_cirrus,icm_pan_flag,icm_criteria_for_aerosol_retrieval,icm_aot_has_clim_val,modland_qa,vi_usefulness,aerosol_quantity,pixel_adjacent_to_cloud,brdf_correction_performed,mixed_clouds,land_water,possible_snow_ice,possible_shadow,platform,land_water,sun_z_angle_at_local_noon,brdf_correction_performed";
+    qcname->options = "adjcorr,atcorr,cloud,data_quality,diff_orbit_from_500m,modland_qa,mandatory_qa_11A1,data_quality_flag_11A1,emis_error_11A1,lst_error_11A1,data_quality_flag_11A2,emis_error_11A2,mandatory_qa_11A2,lst_error_11A2,aerosol_quantity,brdf_correction_performed,cirrus_detected,cloud_shadow,cloud_state,internal_cloud_algorithm,internal_fire_algorithm,internal_snow_mask,land_water,mod35_snow_ice,pixel_adjacent_to_cloud,icm_cloudy,icm_clear,icm_high_clouds,icm_low_clouds,icm_snow,icm_fire,icm_sun_glint,icm_dust,icm_cloud_shadow,icm_pixel_is_adjacent_to_cloud,icm_cirrus,icm_pan_flag,icm_criteria_for_aerosol_retrieval,icm_aot_has_clim_val,modland_qa,vi_usefulness,aerosol_quantity,pixel_adjacent_to_cloud,brdf_correction_performed,mixed_clouds,land_water,possible_snow_ice,possible_shadow,platform,land_water,sun_z_angle_at_local_noon,brdf_correction_performed,modland_qa,vi_usefulness,aerosol_quantity,pixel_adjacent_to_cloud,brdf_correction_performed,mixed_clouds,land_water,possible_snow_ice,possible_shadow";
     qcname->answer = "modland_qa";
 
     input_band = G_define_option();
@@ -334,12 +366,24 @@ int main(int argc, char *argv[])
     result = output->answer;
 
     /*mod09Q1*/
-    if ((strcmp(qcflag, "cloud") && !(strcmp(product, "mod09Q1"))) || 
-	(strcmp(qcflag, "diff_orbit_from_500m") && !(strcmp(product, "mod09Q1"))))
+    if ((!strcmp(qcflag, "cloud") && strcmp(product, "mod09Q1")) || 
+	(!strcmp(qcflag, "diff_orbit_from_500m") && strcmp(product, "mod09Q1")))
 	G_fatal_error(_("This bit flag is only available for MOD09Q1 @ 250m products"));
 
     if (!strcmp(qcflag, "data_quality")) {
-	if (bandno < 1 || bandno > 7)
+	if (!strcmp(product, "mod09Q1") && (bandno < 1 || bandno > 2)) 
+	    G_fatal_error(_("Band number out of allowed range [1-2]"));
+	if (!strcmp(product, "mod09A1") && (bandno < 1 || bandno > 7)) 
+	    G_fatal_error(_("Band number out of allowed range [1-7]"));
+	if (!strcmp(product, "mod09CMG") && (bandno < 1 || bandno > 7)) 
+	    G_fatal_error(_("Band number out of allowed range [1-7]"));
+	if (!strcmp(product, "mod09CMGs") && (bandno < 1 || bandno > 7)) 
+	    G_fatal_error(_("Band number out of allowed range [1-7]"));
+	if (!strcmp(product, "mod09CMGi") && (bandno < 1 || bandno > 7)) 
+	    G_fatal_error(_("Band number out of allowed range [1-7]"));
+	if (!strcmp(product, "mod43B2") && (bandno < 1 || bandno > 7))
+	    G_fatal_error(_("Band number out of allowed range [1-7]"));
+	if (!strcmp(product, "mod43B2q") && (bandno < 1 || bandno > 7)) 
 	    G_fatal_error(_("Band number out of allowed range [1-7]"));
 	if (!strcmp(product, "mod09Q1") && bandno > 2)
 	    G_fatal_error(_("mod09Q1 product only has 2 bands"));
@@ -364,38 +408,45 @@ int main(int argc, char *argv[])
 */
 
     /*mod09CMG*/
-    if ((strcmp(qcflag, "icm_cloudy") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_clear") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_high_clouds") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_low_clouds") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_snow") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_fire") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_sun_glint") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_dust") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_cloud_shadow") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_pixel_is_adjacent_to_cloud") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_cirrus") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_pan_flag") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_criteria_for_aerosol_retrieval") && !(strcmp(product, "mod09CMGi"))) ||
-	(strcmp(qcflag, "icm_aot_has_clim_val") && !(strcmp(product, "mod09CMGi"))))
+    if ((!strcmp(qcflag, "icm_cloudy") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_clear") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_high_clouds") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_low_clouds") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_snow") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_fire") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_sun_glint") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_dust") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_cloud_shadow") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_pixel_is_adjacent_to_cloud") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_cirrus") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_pan_flag") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_criteria_for_aerosol_retrieval") && strcmp(product, "mod09CMGi")) ||
+	(!strcmp(qcflag, "icm_aot_has_clim_val") && strcmp(product, "mod09CMGi")))
 	G_fatal_error(_("This bit flag is only available for mod09CMGi @ 5000m products"));
 
     /*mod13A2*/
-    if ((strcmp(qcflag, "vi_usefulness") && !(strcmp(product, "mod13A2"))) ||
-        (strcmp(qcflag, "mixed_clouds") && !(strcmp(product, "mod13A2"))) ||
-        (strcmp(qcflag, "possible_snow_ice") && !(strcmp(product, "mod13A2"))) ||
-        (strcmp(qcflag, "possible_shadow") && !(strcmp(product, "mod13A2"))))
+    if ((!strcmp(qcflag, "vi_usefulness") && strcmp(product, "mod13A2")) ||
+        (!strcmp(qcflag, "mixed_clouds") && strcmp(product, "mod13A2")) ||
+        (!strcmp(qcflag, "possible_snow_ice") && strcmp(product, "mod13A2")) ||
+        (!strcmp(qcflag, "possible_shadow") && strcmp(product, "mod13A2")))
         G_fatal_error(_("This bit flag is only available for MOD13A2 @ 1km products"));
 
     /*mcd43B2*/
-    if ((strcmp(qcflag, "platform") && !(strcmp(product, "mcd43B2"))) ||
-        (strcmp(qcflag, "land_water") && !(strcmp(product, "mcd43B2"))) ||
-        (strcmp(qcflag, "sun_z_angle_at_local_noon") && !(strcmp(product, "mcd43B2"))))
+    if ((!strcmp(qcflag, "platform") && !strcmp(product, "mcd43B2")) ||
+        (!strcmp(qcflag, "land_water") && !strcmp(product, "mcd43B2")) ||
+        (!strcmp(qcflag, "sun_z_angle_at_local_noon") && !strcmp(product, "mcd43B2")))
         G_fatal_error(_("This bit flag is only available for MCD43B2 @ 1km products"));
 
      /*mcd43B2q*/
-    if (strcmp(product, "mcd43B2q") && (bandno < 1 || bandno > 7))
+    if (!strcmp(product, "mcd43B2q") && (bandno < 1 || bandno > 7))
 	    G_fatal_error(_("Band number out of allowed range [1-7]"));
+
+    /*mod13Q1*/
+    if ((!strcmp(qcflag, "vi_usefulness") && strcmp(product, "mod13Q1")) ||
+        (!strcmp(qcflag, "mixed_clouds") && strcmp(product, "mod13Q1")) ||
+        (!strcmp(qcflag, "possible_snow_ice") && strcmp(product, "mod13Q1")) ||
+        (!strcmp(qcflag, "possible_shadow") && strcmp(product, "mod13Q1")))
+        G_fatal_error(_("This bit flag is only available for MOD13Q1 @ 250m products"));
 
     infd = Rast_open_old(qcchan, "");
 
@@ -410,6 +461,8 @@ int main(int argc, char *argv[])
 
     /* Create New raster files */ 
     outfd = Rast_open_new(result, data_type_output);
+
+    G_debug(3, "Product is %s and QC flag is %s", product, qcflag);
 
     /* Process pixels */ 
     for (row = 0; row < nrows; row++)
@@ -478,31 +531,31 @@ int main(int argc, char *argv[])
 	    }
             else if (!strcmp(product, "mod11A1"))
             {
-                if (!strcmp(qcflag, "mandatory_qa"))
+                if (!strcmp(qcflag, "mandatory_qa_11A1"))
                 /*calculate mod11A1 mandatory qa flags  */
                     c = mod11A1a(c);
-                if (!strcmp(qcflag, "data_quality_flag"))
+                if (!strcmp(qcflag, "data_quality_flag_11A1"))
                 /*calculate mod11A1 data quality flag  */
                     c = mod11A1b(c);
-                if (!strcmp(qcflag, "emis_error"))
+                if (!strcmp(qcflag, "emis_error_11A1"))
                 /*calculate mod11A1 emissivity error flag  */
                     c = mod11A1c(c);
-                if (!strcmp(qcflag, "lst_error"))
+                if (!strcmp(qcflag, "lst_error_11A1"))
                 /*calculate mod11A1 lst error flag  */
                     c = mod11A1d(c);
             }
             else if (!strcmp(product, "mod11A2"))
             {
-                if (!strcmp(qcflag, "mandatory_qa")) 
+                if (!strcmp(qcflag, "mandatory_qa_11A2")) 
 		/*calculate mod11A2 mandatory qa flags  */ 
                     c = mod11A2a(c);
-	        if (!strcmp(qcflag, "data_quality_flag"))
+	        if (!strcmp(qcflag, "data_quality_flag_11A2"))
 		/*calculate mod11A2 data quality flag  */ 
                     c = mod11A2b(c);
-                if (!strcmp(qcflag, "emis_error")) 
+                if (!strcmp(qcflag, "emis_error_11A2")) 
 		/*calculate mod11A2 emissivity error flag  */ 
                     c = mod11A2c(c);
-	        if (!strcmp(qcflag, "lst_error")) 
+	        if (!strcmp(qcflag, "lst_error_11A2")) 
 		/*calculate mod11A2 lst error flag  */ 
                     c = mod11A2d(c);
             }
@@ -675,6 +728,36 @@ int main(int argc, char *argv[])
 		/*calculate mcd43B2: SDS: BRDF_Albedo_Band_Quality */
 		/* BRDF correction performed Quality flag  */ 
                     c = mcd43B2qa(c, bandno);
+            }
+            else if (!strcmp(product, "mod13Q1"))
+            {
+                if (!strcmp(qcflag, "modland_qa")) 
+		/*calculate mod11A2 MODIS Land Quality flags  */ 
+                    c = mod13Q1a(c);
+	        if (!strcmp(qcflag, "vi_usefulness"))
+		/*calculate mod13A2 estimate of vi usefulness flag  */ 
+                    c = mod13Q1b(c);
+                if (!strcmp(qcflag, "aerosol_quantity")) 
+		/*calculate mod13A2 aerosol quantity range flag  */ 
+                    c = mod13Q1c(c);
+	        if (!strcmp(qcflag, "pixel_adjacent_to_cloud")) 
+		/*calculate mod13A2 adjacent cloud detected flag  */ 
+                    c = mod13Q1d(c);
+	        if (!strcmp(qcflag, "brdf_correction_performed")) 
+		/*calculate mod13A2 BRDF correction performed flag  */ 
+                    c = mod13Q1e(c);
+	        if (!strcmp(qcflag, "mixed_clouds")) 
+		/*calculate mod13A2 pixel has clouds flag  */ 
+                    c = mod13Q1f(c);
+	        if (!strcmp(qcflag, "land_water")) 
+		/*calculate mod13A2 land and water types screening flag  */ 
+                    c = mod13Q1g(c);
+	        if (!strcmp(qcflag, "possible_snow_ice")) 
+		/*calculate mod13A2 possible presence of snow or ice flag  */ 
+                    c = mod13Q1h(c);
+	        if (!strcmp(qcflag, "possible_shadow")) 
+		/*calculate mod13A2 possible presence of shadow flag  */ 
+                    c = mod13Q1i(c);
             }
 	    else
                 G_fatal_error(_("Unknown names and/or combination, please check spelling"));

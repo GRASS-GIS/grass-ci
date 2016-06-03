@@ -17,7 +17,10 @@ for details.
 :author: Soeren Gebbert
 """
 
-from space_time_datasets import *
+from .space_time_datasets import *
+from .datetime_math import create_suffix_from_datetime
+from .datetime_math import create_time_suffix
+from .datetime_math import create_numeric_suffic
 import grass.script as gscript
 from grass.exceptions import CalledModuleError
 
@@ -182,7 +185,8 @@ def aggregate_raster_maps(inputs, base, start, end, count, method,
 
 def aggregate_by_topology(granularity_list, granularity, map_list, topo_list,
                           basename, time_suffix, offset=0, method="average",
-                          nprocs=1, spatial=None, dbif=None, overwrite=False):
+                          nprocs=1, spatial=None, dbif=None, overwrite=False,
+                          file_limit=1000):
     """Aggregate a list of raster input maps with r.series
 
        :param granularity_list: A list of AbstractMapDataset objects.
@@ -207,6 +211,8 @@ def aggregate_by_topology(granularity_list, granularity, map_list, topo_list,
                        east, south, north, bottom, top
        :param dbif: The database interface to be used
        :param overwrite: Overwrite existing raster maps
+       :param file_limit: The maximum number of raster map layers that
+                          should be opened at once by r.series
        :return: A list of RasterDataset objects that contain the new map names
                 and the temporal extent for map registration
     """
@@ -273,13 +279,16 @@ def aggregate_by_topology(granularity_list, granularity, map_list, topo_list,
                            "start": str(granule.temporal_extent.get_start_time()),
                            "end": str(granule.temporal_extent.get_end_time())}))
 
-            if granule.is_time_absolute() is True and time_suffix is True:
+            if granule.is_time_absolute() is True and time_suffix == 'gran':
                 suffix = create_suffix_from_datetime(granule.temporal_extent.get_start_time(),
                                                      granularity)
+                output_name = "{ba}_{su}".format(ba=basename, su=suffix)
+            elif granule.is_time_absolute() is True and time_suffix == 'time':
+                suffix = create_time_suffix(granule)
+                output_name = "{ba}_{su}".format(ba=basename, su=suffix)
             else:
-                suffix = gscript.get_num_suffix(count + int(offset),
-                                                len(granularity_list) + int(offset))
-            output_name = "%s_%s" % (basename, suffix)
+                output_name = create_numeric_suffic(basename, count + int(offset),
+                                                    time_suffix)
 
             map_layer = RasterDataset("%s@%s" % (output_name,
                                                  get_current_mapset()))
@@ -303,13 +312,20 @@ def aggregate_by_topology(granularity_list, granularity, map_list, topo_list,
 
                 mod = copy.deepcopy(r_series)
                 mod(file=filename, output=output_name)
-                if len(aggregation_list) > 1000:
+                if len(aggregation_list) > int(file_limit):
+                    msgr.warning(_("The limit of open fiels (%i) was "\
+                                   "reached (%i). The module r.series will "\
+                                   "be run with flag z, to avoid open "\
+                                   "files limit exceeding."%(int(file_limit),
+                                                             len(aggregation_list))))
                     mod(flags="z")
                 process_queue.put(mod)
             else:
                 mod = copy.deepcopy(g_copy)
                 mod(raster=[aggregation_list[0],  output_name])
                 process_queue.put(mod)
+
+    process_queue.wait()
 
     if connected:
         dbif.close()

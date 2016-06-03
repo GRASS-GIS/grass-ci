@@ -71,7 +71,7 @@ int Vect_build_pg(struct Map_info *Map, int build)
         return 0;
     pg_info->inTransaction = FALSE;
     
-    if (pg_info->feature_type == SF_UNKNOWN)
+    if (pg_info->feature_type == SF_GEOMETRY)
         return 1;
     
     if (build == plus->built)
@@ -175,7 +175,7 @@ int build_topo(struct Map_info *Map, int build)
              * mode, before building native topology read nodes from
              * PostGIS Topology */
 
-            /* clean-up spatial a category indeces */
+            /* clean-up spatial a category indices */
             dig_free_plus(&(Map->plus));
             dig_init_plus(&(Map->plus));
             plus->Spidx_new = TRUE;   

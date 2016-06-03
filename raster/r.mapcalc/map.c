@@ -14,6 +14,7 @@
 #include <grass/raster.h>
 #include <grass/btree.h>
 #include <grass/glocale.h>
+#include <grass/calc.h>
 
 #include "mapcalc.h"
 #include "globals.h"
@@ -29,6 +30,7 @@ void setup_region(void)
 
     rows = Rast_window_rows();
     columns = Rast_window_cols();
+    calc_init(columns);
     depths = 1;
 }
 
@@ -168,7 +170,7 @@ static void *cache_get_raw(struct row_cache *cache, int row, int data_type)
 
     if (i <= -cache->nrows || i >= cache->nrows * 2 - 1) {
 	memset(sub->valid, 0, cache->nrows);
-	sub->row = i;
+	sub->row = row;
 	read_row(cache->fd, sub->buf[0], row, data_type);
 	sub->valid[0] = 1;
 	return sub->buf[0];
@@ -307,7 +309,7 @@ static void translate_from_colors(struct map *m, DCELL *rast, CELL *cell,
  * to compute the key and the index
  *
  * This uses the BTREE library to manage the tree itself
- * btree structure must already be intialized
+ * btree structure must already be initialized
  * pcats structure must already contain category labels
  */
 
@@ -649,6 +651,16 @@ void close_maps(void)
     pthread_mutex_destroy(&cats_mutex);
     pthread_mutex_destroy(&mask_mutex);
 #endif
+}
+
+void list_maps(FILE *fp, const char *sep)
+{
+    int i;
+
+    for (i = 0; i < num_maps; i++) {
+        const struct map *m = &maps[i];
+        fprintf(fp, "%s%s@%s", i ? sep : "", m->name, m->mapset);
+    }
 }
 
 /****************************************************************************/

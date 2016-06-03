@@ -142,6 +142,12 @@ OGRSpatialReferenceH GPJ_grass_to_osr(const struct Key_Value * proj_info,
     }
     G_free(proj4mod);
 
+    /* this messes up PROJCS versus GEOGCS!
+    sysname = G_find_key_value("name", proj_info);
+    if (sysname)
+	OSRSetProjCS(hSRS, sysname);
+    */
+
     if ((errcode = OSRExportToWkt(hSRS, &wkt)) != OGRERR_NONE) {
 	G_warning(_("OGR can't get WKT-style parameter string "
 		    "(OGR Error code was %d)"), errcode);
@@ -152,7 +158,7 @@ OGRSpatialReferenceH GPJ_grass_to_osr(const struct Key_Value * proj_info,
     GPJ__get_ellipsoid_params(proj_info, &a, &es, &rf);
     haveparams = GPJ__get_datum_params(proj_info, &datum, &params);
 
-    if(ellpskv != NULL)
+    if (ellpskv != NULL)
 	ellps = G_store(ellpskv);
     else
 	ellps = NULL;
@@ -168,6 +174,7 @@ OGRSpatialReferenceH GPJ_grass_to_osr(const struct Key_Value * proj_info,
 	    ellps = G_store(dstruct.ellps);
 	GPJ_free_datum(&dstruct);
     }
+    G_debug(3, "GPJ_grass_to_osr: datum: <%s>", datum);
     G_free(datum);
     if (GPJ_get_ellipsoid_by_name(ellps, &estruct) > 0) {
 	ellpslong = G_store(estruct.longname);
@@ -264,7 +271,7 @@ OGRSpatialReferenceH GPJ_grass_to_osr(const struct Key_Value * proj_info,
  * \param hSRS        OGRSpatialReferenceH object containing the co-ordinate 
  *                    system to be converted
  * \param datumtrans  Index number of datum parameter set to use, 0 to leave
- *                    unspecifed
+ *                    unspecified
  * 
  * \return            2 if a projected or lat/long co-ordinate system has been
  *                    defined
@@ -278,6 +285,7 @@ int GPJ_osr_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
     struct Key_Value *temp_projinfo;
     char *pszProj4 = NULL, *pszRemaining;
     char *pszProj = NULL;
+    const char *pszProjCS = NULL;
     char *datum = NULL;
     struct gpj_datum dstruct;
 
@@ -285,7 +293,7 @@ int GPJ_osr_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
 	goto default_to_xy;
 
     /* Set finder function for locating OGR csv co-ordinate system tables */
-    SetCSVFilenameHook(GPJ_set_csv_loc);
+    /* SetCSVFilenameHook(GPJ_set_csv_loc); */
 
     /* Hopefully this doesn't do any harm if it wasn't in ESRI format
      * to start with... */
@@ -357,14 +365,13 @@ int GPJ_osr_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
 	else
 	    pszValue = "defined";
 
-
+	/* projection name */
 	if (G_strcasecmp(pszToken, "proj") == 0) {
 	    /* The ll projection is known as longlat in PROJ.4 */
 	    if (G_strcasecmp(pszValue, "longlat") == 0)
 		pszValue = "ll";
 
 	    pszProj = pszValue;
-	    continue;
 	}
 
 	/* Ellipsoid and datum handled separately below */
@@ -383,15 +390,26 @@ int GPJ_osr_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
 
 	G_set_key_value(pszToken, pszValue, temp_projinfo);
     }
+    if (!pszProj)
+	G_warning(_("No projection name! Projection parameters likely to be meaningless."));
 
     *projinfo = G_create_key_value();
 
     /* -------------------------------------------------------------------- */
-    /*      Derive the user name for the projection.                        */
+    /*      Derive the user name for the coordinate system.                 */
     /* -------------------------------------------------------------------- */
-    if (pszProj) {
+    pszProjCS = OSRGetAttrValue(hSRS, "PROJCS", 0);
+    if (!pszProjCS)
+	pszProjCS = OSRGetAttrValue(hSRS, "GEOGCS", 0);
+
+    if (pszProjCS) {
+	G_set_key_value("name", pszProjCS, *projinfo);
+    }
+    else if (pszProj) {
 	char path[4095];
 	char name[80];
+	
+	/* use name of the projection as name for the coordinate system */
 
 	sprintf(path, "%s/etc/proj/projections", G_gisbase());
 	if (G_lookup_key_value_from_file(path, pszProj, name, sizeof(name)) >
@@ -399,11 +417,7 @@ int GPJ_osr_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
 	    G_set_key_value("name", name, *projinfo);
 	else
 	    G_set_key_value("name", pszProj, *projinfo);
-
-	G_set_key_value("proj", pszProj, *projinfo);
     }
-    else
-	G_warning(_("No projection name! Projection parameters likely to be meaningless."));
 
 
     /* -------------------------------------------------------------------- */
@@ -424,6 +438,7 @@ int GPJ_osr_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
 
 	    pszDatumName = G_store(pszDatumNameConst);
 	    DatumNameMassage(&pszDatumName);
+	    G_debug(3, "GPJ_osr_to_grass: pszDatumNameConst: <%s>", pszDatumName);
 
 	    list = listhead = read_datum_table();
 
@@ -675,7 +690,7 @@ int GPJ_osr_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
  * \param wkt         Well-known Text (WKT) description of the co-ordinate 
  *                    system to be converted
  * \param datumtrans  Index number of datum parameter set to use, 0 to leave
- *                    unspecifed
+ *                    unspecified
  * 
  * \return            2 if a projected or lat/long co-ordinate system has been
  *                    defined
@@ -697,7 +712,7 @@ int GPJ_wkt_to_grass(struct Cell_head *cellhd, struct Key_Value **projinfo,
 	OGRSpatialReferenceH hSRS;
 
 	/* Set finder function for locating OGR csv co-ordinate system tables */
-	SetCSVFilenameHook(GPJ_set_csv_loc);
+	/* SetCSVFilenameHook(GPJ_set_csv_loc); */
 
 	hSRS = OSRNewSpatialReference(wkt);
 	retval =
@@ -732,14 +747,24 @@ const char *GPJ_set_csv_loc(const char *name)
 /* The list below is only for files that use a non-standard name for a 
  * datum that is already supported in GRASS. The number of entries must be even;
  * they are all in pairs. The first one in the pair is the non-standard name;
- * the second is the GRASS name. If a name appears more than once (as for
+ * the second is the GRASS/GDAL name. If a name appears more than once (as for
  * European_Terrestrial_Reference_System_1989) then it means there was more
  * than one non-standard name for it that needs to be accounted for. 
  *
  * N.B. The order of these pairs is different from that in 
  * ogr/ogrfromepsg.cpp in the GDAL source tree! GRASS uses the EPSG
  * names in its WKT representation except WGS_1984 and WGS_1972 as
- * these shortened versions seem to be standard
+ * these shortened versions seem to be standard.
+ * Below order:
+ * the equivalent name comes first in the pair, and
+ * the EPSG name (as used in the GRASS datum.table file) comes second.
+ *
+ * The datum parameters are stored in
+ *   ../gis/datum.table           # 3 parameters
+ *   ../gis/datumtransform.table  # 7 parameters (requires entry in datum.table)
+ *
+ * Hint: use GDAL's "testepsg" to identify the canonical name, e.g.
+ *       testepsg epsg:4674
  */
 
 static const char *papszDatumEquiv[] = {
@@ -767,6 +792,8 @@ static const char *papszDatumEquiv[] = {
     "Monte_Mario",
     "Campo_Inchauspe_1969",
     "Campo_Inchauspe",
+    "S_JTSK",
+    "System_Jednotne_Trigonometricke_Site_Katastralni",
     "S_JTSK_Ferro",
     "Militar_Geographische_Institut",
     "Potsdam_Datum_83",
@@ -791,6 +818,7 @@ static void DatumNameMassage(char **ppszDatum)
     int i, j;
     char *pszDatum = *ppszDatum;
 
+    G_debug(3, "DatumNameMassage: Raw string found <%s>", (char *)pszDatum);
     /* -------------------------------------------------------------------- */
     /*      Translate non-alphanumeric values to underscores.               */
     /* -------------------------------------------------------------------- */
@@ -820,6 +848,7 @@ static void DatumNameMassage(char **ppszDatum)
     /*      Search for datum equivalences.  Specific massaged names get     */
     /*      mapped to OpenGIS specified names.                              */
     /* -------------------------------------------------------------------- */
+    G_debug(3, "DatumNameMassage: Search for datum equivalences of <%s>", (char *)pszDatum);
     for (i = 0; papszDatumEquiv[i] != NULL; i += 2) {
 	if (EQUAL(*ppszDatum, papszDatumEquiv[i])) {
 	    G_free(*ppszDatum);

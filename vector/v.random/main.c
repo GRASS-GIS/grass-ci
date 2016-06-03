@@ -64,7 +64,8 @@ int main(int argc, char *argv[])
     double (*rng)(void) = G_drand48;
     double zmin, zmax;
     int seed;
-    int i, j, k, n, type, usefloat;
+    unsigned long i, n;
+    int j, k, type, usefloat;
     int area, nareas, field;
     struct boxlist *List = NULL;
     BOX_SIZE *size_list = NULL;
@@ -179,8 +180,8 @@ int main(int argc, char *argv[])
 	exit(EXIT_FAILURE);
 
     output = parm.output->answer;
-    n = atoi(parm.nsites->answer);
-    
+    n = strtoul(parm.nsites->answer, NULL, 10);
+
     if(parm.seed->answer)
         seed = atoi(parm.seed->answer);
 
@@ -462,7 +463,7 @@ int main(int argc, char *argv[])
 			sprintf(buf, "%.0f )", z);
 		    db_append_string(&sql, buf);
 
-		    G_debug(3, db_get_string(&sql));
+		    G_debug(3, "%s", db_get_string(&sql));
 		    if (db_execute_immediate(driver, &sql) != DB_OK) {
 			G_fatal_error(_("Cannot insert new row: %s"),
 				      db_get_string(&sql));
@@ -582,7 +583,7 @@ int main(int argc, char *argv[])
 		    sprintf(buf, "%.0f )", z);
 		db_append_string(&sql, buf);
 
-		G_debug(3, db_get_string(&sql));
+		G_debug(3, "%s", db_get_string(&sql));
 		if (db_execute_immediate(driver, &sql) != DB_OK) {
 		    G_fatal_error(_("Cannot insert new row: %s"),
 				  db_get_string(&sql));

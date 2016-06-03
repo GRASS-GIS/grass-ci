@@ -45,6 +45,7 @@ Contents
        find . -name '*.rej'  | xargs rm
        find . -name '*.o'    | xargs rm
        find . -name '*.pyc'  | xargs rm
+       rm -f gui/wxpython/menustrings.py gui/wxpython/build_ext.pyc gui/wxpython/xml/menudata.xml gui/wxpython/xml/module_tree_menudata.xml
        chmod -R a+r *
 
        svn status
@@ -56,15 +57,18 @@ Contents
 
 #example:
 7
-0
+1
 0RC1
-2015
+2016
       rm -f include/VERSION~
 
     - Update additionally the winGRASS version
       grass-addons/tools/wingrass-packager/grass_packager_release.bat
       grass-addons/tools/wingrass-packager/grass_addons.sh
       grass-addons/tools/wingrass-packager/grass_copy_wwwroot.sh
+
+    - Update OSGeo4W setup.hint file
+      mswindows/osgeo4w/setup.hint
 
      #version:
      MAJOR=`cat include/VERSION | head -1 | tail -1`
@@ -116,17 +120,17 @@ Contents
 
 #example
 7
-0
+1
 0svn
-2014
+2016
 
     rm -f include/VERSION~
     svn ci -m"back to SVN" include/VERSION
 
 
  o Store the source tarball (twice) in (use scp -p FILES grass:):
-    SERVER1=grass.osgeo.org:/osgeo/grass/grass-cms/grass$MAJOR$MINOR/source/
-    SERVER2=download.osgeo.org:/osgeo/download/grass/grass$MAJOR$MINOR/source/
+    SERVER1=grass.osgeo.org:/var/www/grass/grass-cms/grass$MAJOR$MINOR/source/
+    SERVER2=upload.osgeo.org:/osgeo/download/grass/grass$MAJOR$MINOR/source/
     echo $SERVER1
     echo $SERVER2
 
@@ -141,13 +145,20 @@ Contents
     - News section
     - http://grass.osgeo.org/download/software/
     - http://grass.osgeo.org/download/software/sources/
-    - http://grass.osgeo.org/grass71/ <- to be moved to CMS
+    - http://grass.osgeo.org/download/software/linux/
     - http://grass.osgeo.org/home/history/releases/
     - http://grass.osgeo.org/development/svn/svn-tags/ (add tag): echo $RELEASETAG
 
      write announcement
       - store in trac: http://trac.osgeo.org/grass/wiki/Release/7.XX.YY-News
+      - update version in https://grasswiki.osgeo.org/wiki/GRASS-Wiki
       - store in Web as announces/announce_grass$MAJOR$MINOR$RELEASE.html <- how? with protected PHP upload page?
+
+     full release:
+      - update trac 
+         - milesstone/add next: https://trac.osgeo.org/grass/admin/ticket/milestones
+         - add released version: https://trac.osgeo.org/grass/admin/ticket/versions
+      
 
  o upload user HTML manual in case of *final release* from compiled English
    version at (warning: needs stuff to be compiled).
@@ -155,26 +166,40 @@ Contents
       -  cd dist.$ARCH/docs/html
          echo www/grass$MAJOR$MINOR/manuals/
          scp -r * neteler@grass.osgeo.org:/osgeo/grass/grass-cms/grass$MAJOR$MINOR/manuals/
-         scp -r * neteler@download.osgeo.org:/osgeo/download/grass/grass$MAJOR$MINOR/manuals/
+         scp -r * neteler@upload.osgeo.org:/osgeo/download/grass/grass$MAJOR$MINOR/manuals/
 
  o stable release: update cronjob 'cron_grass_HEAD_src_snapshot.sh' to next but one
                    release tag for the differences
+
+ o Trac updates:
+      - Add new release to https://trac.osgeo.org/grass/admin/ticket/versions
+      - Set "complete" flag in https://trac.osgeo.org/grass/milestone/7.0.x --> Edit Milestone
+        (this ideally batch-migrates assigned tickets to next milestone)
+      - batch modify tickets, set to next milestone (update this query accordingly)
+        https://trac.osgeo.org/grass/query?status=assigned&status=new&status=reopened&milestone=7.2.0&milestone=7.2.1&group=status&col=id&col=summary&col=owner&col=type&col=priority&col=component&col=version&order=priority
+        - under "Comment" add Field "Milestone" and set to next version
+        - Select all shown tickets via Status: assigned/new/reopened
+        - then "Change ticket" button
+      - Only in case of new release branch
+         Add Wiki Macro definitions for manual pages G7X:modulename
+         - Edit: https://trac.osgeo.org/grass/wiki/InterMapTxt
+
 
  o WinGRASS notes:
 
    Update grass_packager_release.bat, eg.
 
      set MAJOR=7
-     set MINOR=0
-     set PATCH=0beta3
+     set MINOR=1
+     set PATCH=0RC1
 
    Update addons (grass_addons.sh) rules, eg.
 
-     compile $SVN_PATH/grass7 $GISBASE_PATH/grass700beta3   $ADDON_PATH/grass700beta3/addons
+     compile $SVN_PATH/grass7 $GISBASE_PATH/grass710RC1   $ADDON_PATH/grass710RC1/addons
 
    Modify grass_copy_wwwroot.sh accordingly, eg.
 
-     copy_addon 700beta3 7.0.0beta3
+     copy_addon 700RC1 7.0.0RC1
 
  o Launchpad notes:
 
@@ -206,7 +231,7 @@ Contents
 
    DebianGIS:          <debian-gis@lists.debian.org>
    FreeGIS:            <freegis-list@intevation.de>
-   Geowanking:         <geowanking@lists.burri.to>
+   Geowanking:         <geowanking@geowanking.org>
    OSGeo.org:          <news_item@osgeo.org>
 
  Email:
@@ -216,27 +241,23 @@ Contents
    redazione@geoforus.it
    mfeilner@linuxnewmedia.de
    info@harzer.de
-   info@j-geoinfo.net
    pr@geocomm.com
    editor-geo@geoconnexion.com
 
  Web:
    https://plus.google.com/u/0/communities/111147786674687562495 (G+ GRASS GIS community)
-   http://slashgeo.org/submit-geonews-press-release/ (MN login)
-   http://freshmeat.net/projects/grass/?highlight=GRASS (update, MN)
    http://linuxtoday.com/contribute.php3
    https://joinup.ec.europa.eu/software/grassgis/home (submit news, MN)
    http://www.macnn.com/contact/newstips/1
-   http://www10.giscafe.com/submit_material/submit_options.php#Press (MN)
+   http://www10.giscafe.com/submit_material/submit_options.php#Press (MN)   --> Press releases
    http://www.freegis.org   (update, MN)
-   http://www.directionsmag.com/pressreleases/ (News -> Post Press Release)
+   http://www.directionsmag.com/pressreleases/ (News -> Submit Press Release)
    http://directory.fsf.org/wiki/GRASS_%28Geographic_Resources_Analysis_Support_System%29
    http://www.kde-apps.org/content/show.php?content=19776
    http://www.opendesktop.org/content/show.php?content=19776
    https://news.eoportal.org/web/eoportal/share-your-news (MN)
             -> Share your news with the EO community
    http://www.heise.de/software/download/edit_7105 (update, MN)
-   https://joinup.ec.europa.eu/ --> Sharing content | Propose your...
 
    See also: http://grass.osgeo.org/wiki/Contact_Databases
    ... anywhere else? Please add here.
@@ -261,9 +282,8 @@ Contents
            svn switch https://svn.osgeo.org/grass/grass/branches/releasebranch_7_0 .
 
 ----------
-GRASS GIS 7.0 release branch creation
+Example: GRASS GIS 7.2 release branch creation
 
 svn copy https://svn.osgeo.org/grass/grass/trunk/ \
-    https://svn.osgeo.org/grass/grass/branches/releasebranch_7_0 \
-    -m "Creating the GRASS GIS 7.0 release branch (development started in 04/2008, r31142)"
-
+    https://svn.osgeo.org/grass/grass/branches/releasebranch_7_2 \
+    -m "Creating the GRASS GIS 7.2 release branch"

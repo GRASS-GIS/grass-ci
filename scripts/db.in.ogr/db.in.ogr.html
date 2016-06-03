@@ -1,7 +1,7 @@
 <h2>DESCRIPTION</h2>
 
 <em>db.in.ogr</em> imports attribute tables in various formats as
-supported by the <a href="http://gdal.org/ogr">OGR library</a>
+supported by the <a href="http://www.gdal.org/">OGR library</a>
 on the local system (DBF, CSV, PostgreSQL, SQLite, MySQL, ODBC,
 etc.). Optionally a unique <b>key</b> (ID) column can be
 added to the table.
@@ -12,12 +12,12 @@ added to the table.
 
 Limited type recognition can be done for Integer, Real, String, Date, Time and DateTime
 columns through a descriptive file with same name as the CSV file, but .csvt extension
-(see details <a href="http://www.gdal.org/ogr/drv_csv.html">here</a>).
+(see details <a href="http://www.gdal.org/drv_csv.html">here</a>).
 
 <div class="code"><pre>
 # NOTE: create koeppen_gridcode.csvt first for automated type recognition
 db.in.ogr input=koeppen_gridcode.csv output=koeppen_gridcode
-db.select koeppen_gridcode
+db.select table=koeppen_gridcode
 </pre></div>
 
 <h3>Import DBF table</h3>
@@ -43,7 +43,7 @@ table, set the environmental variable PG_LIST_ALL_TABLES to YES before importing
 
 db.in.ogr input="PG:host=localhost dbname=ecad user=neteler" \
           db_table=ecad_verona_tmean output=ecad_verona_tmean
-db.select ecad_verona_tmean
+db.select table=ecad_verona_tmean
 db.describe -c ecad_verona_tmean
 </pre></div>
 
@@ -61,6 +61,7 @@ db.in.ogr input=address.xls db_table=address_data
 <h2>SEE ALSO</h2>
 
 <em>
+<a href="db.select.html">db.select</a>,
 <a href="v.in.ogr.html">v.in.ogr</a>,
 <a href="v.in.db.html">v.in.db</a>
 </em>

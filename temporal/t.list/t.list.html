@@ -11,15 +11,19 @@ define the columns that should be printed for each dataset and the
 order of the datasets. In addition a SQL WHERE statement can be
 specified to select a subset of the requested datasets.
 
-<h2>NOTE</h2>
+<h2>NOTES</h2>
 
-The SQL where and sort expression will be applied for each temporal
-database that was found in accessible mapsets. Hence sorting works only
-on mapset basis.
+The SQL <em>where</em> and <em>sort</em> expression will be applied for
+each temporal database that was found in accessible mapsets. Hence
+sorting works only on mapset basis.
+<p>
+Temporal databases stored in other mapsets can be used as long as they
+are in the user's current mapset search path (managed with
+<a href="g.mapsets.html">g.mapsets</a>).
 
 <h2>EXAMPLES</h2>
 
-In order to obtain the list of raster space time dataset
+Obtain the list of raster space time dataset(s):
 
 <div class="code"><pre>
 t.list strds
@@ -28,11 +32,12 @@ Space time raster datasets with absolute time available in mapset &#60;climate_2
 tempmean_monthly@climate_2000_2012
 </pre></div>
 
-Tha user can obtain also the list of raster contained into temporal
-datasets
+The user can obtain also the list of raster maps contained in a temporal
+datasets (this may be the content of several space time datasets if enabled
+through <a href="g.mapsets.html">g.mapsets</a>):
 
 <div class="code"><pre>
-t.list rast
+t.list raster
 Time stamped raster maps with absolute time available in mapset &#60;climate_2000_2012&#62;:
 2009_01_tempmean@climate_2000_2012
 2009_02_tempmean@climate_2000_2012

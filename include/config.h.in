@@ -38,6 +38,9 @@
 /* define if zlib.h exists */
 #undef HAVE_ZLIB_H
 
+/* define if bzlib.h exists */
+#undef HAVE_BZLIB_H
+
 /* define if sys/ioctl.h exists */
 #undef HAVE_SYS_IOCTL_H
 
@@ -276,7 +279,7 @@
 
 #endif
 
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) && (!defined(_FILE_OFFSET_BITS) || (_FILE_OFFSET_BITS != 64))
 
 /* add/remove as needed */
 /* redefine off_t */

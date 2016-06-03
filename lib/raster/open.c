@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <errno.h>
 
 #include <grass/config.h>
 #include <grass/gis.h>
@@ -28,7 +29,8 @@
 #include "R.h"
 #define FORMAT_FILE "f_format"
 #define NULL_FILE   "null"
-#define NULL2_FILE  "null2"
+/* cmpressed null file */
+#define NULLC_FILE  "nullcmpr"
 
 static int new_fileinfo(void)
 {
@@ -216,6 +218,24 @@ int Rast__open_old(const char *name, const char *mapset)
 			  r_name, r_mapset);
     }
 
+    /* compressor */
+    if (MAP_TYPE != CELL_TYPE) {
+	/* fp maps do not use RLE */
+	/* previously, compressed simply meant yes (ZLIB) or no
+	 * now compressed encodes compressor type
+	 * 0: not compressed
+	 * 1, 2: ZLIB
+	 * 3: LZ4
+	 * 4: BZIP2
+	 * etc */
+	if (cellhd.compressed == 1)
+	    cellhd.compressed = 2;
+    }
+    /* test if compressor type is supported */
+    if (!G_check_compressor(cellhd.compressed)) {
+	G_fatal_error(_("Compression with %s is not supported"), G_compressor_name(cellhd.compressed));
+    }
+
     if (cellhd.proj != R__.rd_window.proj)
 	G_fatal_error(_("Raster map <%s> is in different projection than current region. "
 			"Found <%s>, should be <%s>."),
@@ -335,7 +355,7 @@ int Rast__open_old(const char *name, const char *mapset)
 	/* First, check for compressed null file */
 	fcb->null_fd = G_open_old_misc("cell_misc", NULL_FILE, r_name, r_mapset);
 	if (fcb->null_fd < 0) {
-	    fcb->null_fd = G_open_old_misc("cell_misc", NULL2_FILE, r_name, r_mapset);
+	    fcb->null_fd = G_open_old_misc("cell_misc", NULLC_FILE, r_name, r_mapset);
 	    if (fcb->null_fd >= 0) {
 		fcb->null_row_ptr = G_calloc(fcb->cellhd.rows + 1, sizeof(off_t));
 		if (Rast__read_null_row_ptrs(fd, fcb->null_fd) < 0) {
@@ -632,6 +652,8 @@ static int open_raster_new(const char *name, int open_mode,
      *   allocate space to hold the row address array
      */
     fcb->cellhd = R__.wr_window;
+    
+    /* change open_mode to OPEN_NEW_UNCOMPRESSED if R__.compression_type == 0 ? */
 
     if (open_mode == OPEN_NEW_COMPRESSED && fcb->map_type == CELL_TYPE) {
 	fcb->row_ptr = G_calloc(fcb->cellhd.rows + 1, sizeof(off_t));
@@ -655,6 +677,11 @@ static int open_raster_new(const char *name, int open_mode,
 	if (fcb->map_type != CELL_TYPE) {
 	    Rast_quant_init(&(fcb->quant));
 	}
+    }
+    if (open_mode == OPEN_NEW_COMPRESSED && fcb->map_type != CELL_TYPE &&
+        fcb->cellhd.compressed == 1) {
+	/* fp maps do not use RLE */
+	fcb->cellhd.compressed = 2;
     }
 
     /* save name and mapset, and tempfile name */

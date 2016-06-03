@@ -41,6 +41,7 @@
       <separator/>
       <wxgui-item name="LaunchScript"/>
       <separator/>
+      <wxgui-item name="CloseGUI"/>
       <wxgui-item name="Quit"/>
     </items>
   </toolbox>
@@ -249,6 +250,9 @@
     <label>Import raster data</label>
     <items>
       <wxgui-item name="CommonFormatsImport"/>
+      <module-item name="r.import">
+        <label>Import of common formats with reprojection</label>
+      </module-item>
       <separator/>
       <module-item name="r.in.xyz">
         <label>ASCII x,y,z point import and gridding</label>
@@ -298,6 +302,9 @@
     <label>Import vector data</label>
     <items>
       <wxgui-item name="CommonImportFormats"/>
+      <module-item name="v.import">
+        <label>Import of common formats with reprojection</label>
+      </module-item>
       <separator/>
       <module-item name="v.in.ascii">
         <label>ASCII points or GRASS ASCII format</label>
@@ -1758,7 +1765,7 @@
         <label>Raster calculations</label>
       </module-item>
       <module-item name="t.rast3d.mapcalc">
-        <label>Raster3D calculations</label>
+        <label>3D raster calculations</label>
       </module-item>
       <separator/>
       <module-item name="t.rast.gapfill">
@@ -1818,7 +1825,7 @@
         <label>List vector dataset maps</label>
       </module-item>
       <module-item name="t.rast3d.list">
-        <label>List raster3D dataset maps</label>
+        <label>List 3D raster dataset maps</label>
       </module-item>
     </items>
   </toolbox>
@@ -1836,7 +1843,7 @@
         <label>Univariate vector dataset statistics</label>
       </module-item>
       <module-item name="t.rast3d.univar">
-        <label>Univariate raster3D dataset statistics</label>
+        <label>Univariate 3D raster dataset statistics</label>
       </module-item>
       <separator/>
       <module-item name="t.topology">
@@ -1880,7 +1887,7 @@
         <label>Extract subset of vector dataset</label>
       </module-item>
       <module-item name="t.rast3d.extract">
-        <label>Extract subset of raster3D dataset</label>
+        <label>Extract subset of 3D raster dataset</label>
       </module-item>
     </items>
   </toolbox>
@@ -1931,11 +1938,13 @@
       <module-item name="g.gui.dbmgr">
         <label>Attribute table manager</label>
       </module-item>
+      <wxgui-item name="CartographicComposer"/>
       <wxgui-item name="Georectify"/>
       <wxgui-item name="GraphicalModeler"/>
       <wxgui-item name="InteractiveInputForSupervisedClassification"/>
       <wxgui-item name="MapSwipe"/>
-      <wxgui-item name="CartographicComposer"/>
+      <wxgui-item name="TplotTool"/>
+      <wxgui-item name="TimelineTool"/>
     </items>
   </toolbox>
 </toolboxes>

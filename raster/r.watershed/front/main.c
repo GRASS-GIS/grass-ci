@@ -58,6 +58,7 @@ int main(int argc, char *argv[])
     struct Option *opt15;
     struct Option *opt16;
     struct Option *opt17;
+    struct Option *opt18;
     struct Flag *flag_sfd;
     struct Flag *flag_flow;
     struct Flag *flag_seg;
@@ -138,6 +139,13 @@ int main(int argc, char *argv[])
 	_("Name for output topographic index ln(a / tan(b)) map");
     opt17->required = NO;
     opt17->guisection = _("Outputs");
+
+    opt18 = G_define_standard_option(G_OPT_R_OUTPUT);
+    opt18->key = "spi";
+    opt18->label =
+	_("Stream power index a * tan(b)");
+    opt18->required = NO;
+    opt18->guisection = _("Outputs");
 
     opt9 = G_define_standard_option(G_OPT_R_OUTPUT);
     opt9->key = "drainage";
@@ -302,6 +310,7 @@ int main(int argc, char *argv[])
     do_opt(opt7);
     do_opt(opt8);
     do_opt(opt17);
+    do_opt(opt18);
     do_opt(opt9);
     do_opt(opt10);
     do_opt(opt11);
@@ -314,7 +323,9 @@ int main(int argc, char *argv[])
     new_argv[new_argc++] = NULL;
 
     G_debug(1, "Mode: %s", flag_seg->answer ? "Segmented" : "All in RAM");
-
+/*    if (flag_seg->answer)
+       G_message(_("Using memory cache size: %.1f MB"), atof(opt16->answer));
+*/
     ret = G_vspawn_ex(new_argv[0], new_argv);
 
     if (ret != EXIT_SUCCESS)
@@ -328,6 +339,10 @@ int main(int argc, char *argv[])
     if (opt17->answer)
 	write_hist(opt17->answer,
 		   "Watershed accumulation: topographic index ln(a / tan b)",
+		   opt1->answer, flag_seg->answer, flag_sfd->answer);
+    if (opt18->answer)
+	write_hist(opt18->answer,
+		   "Watershed accumulation: stream power index a * tan b",
 		   opt1->answer, flag_seg->answer, flag_sfd->answer);
     if (opt9->answer)
 	write_hist(opt9->answer,

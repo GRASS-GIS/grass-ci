@@ -12,6 +12,9 @@ from grass.script import core as grasscore
 from grass.pygrass.errors import GrassError
 
 
+test_vector_name="Utils_test_vector"
+test_raster_name="Utils_test_raster"
+
 def looking(obj, filter_string):
     """
     >>> import grass.lib.vector as libvect
@@ -104,7 +107,7 @@ def rename(oldname, newname, maptype, **kwargs):
 def copy(existingmap, newmap, maptype, **kwargs):
     """Copy a map
 
-    >>> copy('census', 'mycensus', 'vector')
+    >>> copy(test_vector_name, 'mycensus', 'vector')
     >>> rename('mycensus', 'mynewcensus', 'vector')
     >>> remove('mynewcensus', 'vector')
 
@@ -127,8 +130,8 @@ def getenv(env):
 def get_mapset_raster(mapname, mapset=''):
     """Return the mapset of the raster map
 
-    >>> get_mapset_raster('elevation')
-    'PERMANENT'
+    >>> get_mapset_raster(test_raster_name) == getenv("MAPSET")
+    True
 
     """
     return libgis.G_find_raster2(mapname, mapset)
@@ -137,8 +140,8 @@ def get_mapset_raster(mapname, mapset=''):
 def get_mapset_vector(mapname, mapset=''):
     """Return the mapset of the vector map
 
-    >>> get_mapset_vector('census')
-    'PERMANENT'
+    >>> get_mapset_vector(test_vector_name) == getenv("MAPSET")
+    True
 
     """
     return libgis.G_find_vector2(mapname, mapset)
@@ -174,8 +177,8 @@ def coor2pixel(coord, region):
 
     """
     (east, north) = coord
-    return (libraster.Rast_northing_to_row(north, region.c_region),
-            libraster.Rast_easting_to_col(east, region.c_region))
+    return (libraster.Rast_northing_to_row(north, region.byref()),
+            libraster.Rast_easting_to_col(east, region.byref()))
 
 
 def pixel2coor(pixel, region):
@@ -190,34 +193,47 @@ def pixel2coor(pixel, region):
 
     """
     (col, row) = pixel
-    return (libraster.Rast_row_to_northing(row, region.c_region),
-            libraster.Rast_col_to_easting(col, region.c_region))
+    return (libraster.Rast_row_to_northing(row, region.byref()),
+            libraster.Rast_col_to_easting(col, region.byref()))
 
 
 def get_raster_for_points(poi_vector, raster, column=None, region=None):
     """Query a raster map for each point feature of a vector
 
+    test_vector_name="Utils_test_vector"
+    test_raster_name="Utils_test_raster"
+
     Example
 
     >>> from grass.pygrass.vector import VectorTopo
     >>> from grass.pygrass.raster import RasterRow
-    >>> ele = RasterRow('elevation')
-    >>> copy('schools','myschools','vector')
-    >>> sch = VectorTopo('myschools')
-    >>> sch.open(mode='r')
-    >>> get_raster_for_points(sch, ele)               # doctest: +ELLIPSIS
-    [(1, 633649.2856743174, 221412.94434781274, 145.06602), ...]
-    >>> sch.table.columns.add('elevation','double precision')
-    >>> 'elevation' in sch.table.columns
+    >>> from grass.pygrass.gis.region import Region
+    >>> region = Region()
+    >>> region.from_rast(test_raster_name)
+    >>> region.set_raster_region()
+    >>> ele = RasterRow(test_raster_name)
+    >>> copy(test_vector_name,'test_vect_2','vector')
+    >>> fire = VectorTopo('test_vect_2')
+    >>> fire.open(mode='r')
+    >>> l = get_raster_for_points(fire, ele, region=region)
+    >>> l[0]                                        # doctest: +ELLIPSIS
+    (1, 620856.9585876337, 230066.3831321055, 111.2153883384)
+    >>> l[1]                                        # doctest: +ELLIPSIS
+    (2, 625331.9185974908, 229990.82160762616, 89.978796115200012)
+    >>> fire.table.columns.add(test_raster_name,'double precision')
+    >>> test_raster_name in fire.table.columns
     True
-    >>> get_raster_for_points(sch, ele, column='elevation')
+    >>> get_raster_for_points(fire, ele, column=test_raster_name, region=region)
     True
-    >>> sch.table.filters.select('NAMESHORT','elevation')
-    Filters(u'SELECT NAMESHORT, elevation FROM myschools;')
-    >>> cur = sch.table.execute()
-    >>> cur.fetchall()                                # doctest: +ELLIPSIS
-    [(u'SWIFT CREEK', 145.06602), ... (u'9TH GRADE CTR', None)]
-    >>> remove('myschools','vect')
+    >>> fire.table.filters.select('name', test_raster_name)
+    Filters(u'SELECT name, Utils_test_raster FROM test_vect_2;')
+    >>> cur = fire.table.execute()
+    >>> r = cur.fetchall()
+    >>> r[0]                                        # doctest: +ELLIPSIS
+    (u'Morrisville #3', 111.2153883384)
+    >>> r[1]                                        # doctest: +ELLIPSIS
+    (u'Morrisville #1', 89.97879611520001)
+    >>> remove('test_vect_2','vect')
 
 
     :param point: point vector object
@@ -267,42 +283,29 @@ def r_export(rast, output='', fmt='png', **kargs):
         raise ValueError('Raster map does not exist.')
 
 
-def get_lib_path(modname, libname):
+def get_lib_path(modname, libname=None):
     """Return the path of the libname contained in the module.
 
-    >>> get_lib_path(modname='r.modis', libname='libmodis')
+    .. deprecated:: 7.1
+        Use :func:`grass.script.utils.get_lib_path` instead.
     """
-    from os.path import isdir, join
-    from os import getenv
-
-    if isdir(join(getenv('GISBASE'), 'etc', modname)):
-        path = join(os.getenv('GISBASE'), 'etc', modname)
-    elif getenv('GRASS_ADDON_BASE') and \
-            isdir(join(getenv('GRASS_ADDON_BASE'), 'etc', modname)):
-        path = join(getenv('GRASS_ADDON_BASE'), 'etc', modname)
-    elif getenv('GRASS_ADDON_BASE') and \
-            isdir(join(getenv('GRASS_ADDON_BASE'), modname, modname)):
-        path = join(os.getenv('GRASS_ADDON_BASE'), modname, modname)
-    elif isdir(join('..', libname)):
-        path = join('..', libname)
-    else:
-        path = None
-    return path
+    from grass.script.utils import get_lib_path
+    return get_lib_path(modname=modname, libname=libname)
 
 
-def set_path(modulename, dirname, path='.'):
-    import sys
-    """Set sys.path looking in the the local directory GRASS directories."""
-    pathlib = os.path.join(path, dirname)
-    if os.path.exists(pathlib):
-        # we are running the script from the script directory
-        sys.path.append(os.path.abspath(path))
-    else:
-        # running from GRASS GIS session
-        path = get_lib_path(modulename, dirname)
-        if path is None:
-            raise ImportError("Not able to find the path %s directory." % path)
-        sys.path.append(path)
+def set_path(modulename, dirname=None, path='.'):
+    """Set sys.path looking in the the local directory GRASS directories.
+
+    :param modulename: string with the name of the GRASS module
+    :param dirname: string with the directory name containing the python
+                    libraries, default None
+    :param path: string with the path to reach the dirname locally.
+
+    .. deprecated:: 7.1
+        Use :func:`grass.script.utils.set_path` instead.
+    """
+    from grass.script.utils import set_path
+    return set_path(modulename=modulename, dirname=dirname, path=path)
 
 
 def split_in_chunk(iterable, length=10):
@@ -419,6 +422,11 @@ def create_test_vector_map(map_name="test_vector"):
         vect.comment = 'This is a comment'
 
         vect.table.conn.commit()
+
+        vect.organization = "Thuenen Institut"
+        vect.person = "Soeren Gebbert"
+        vect.title = "Test dataset"
+        vect.comment = "This is a comment"
         vect.close()
 
 def create_test_stream_network_map(map_name="streams"):
@@ -495,3 +503,24 @@ def create_test_stream_network_map(map_name="streams"):
 
         streams.table.conn.commit()
         streams.close()
+
+if __name__ == "__main__":
+
+    import doctest
+    from grass.pygrass import utils
+    from grass.script.core import run_command
+
+    utils.create_test_vector_map(test_vector_name)
+    run_command("g.region", n=50, s=0, e=60, w=0, res=1)
+    run_command("r.mapcalc", expression="%s = 1"%(test_raster_name),
+                             overwrite=True)
+
+    doctest.testmod()
+
+    """Remove the generated vector map, if exist"""
+    mset = utils.get_mapset_vector(test_vector_name, mapset='')
+    if mset:
+        run_command("g.remove", flags='f', type='vector', name=test_vector_name)
+    mset = utils.get_mapset_raster(test_raster_name, mapset='')
+    if mset:
+        run_command("g.remove", flags='f', type='raster', name=test_raster_name)

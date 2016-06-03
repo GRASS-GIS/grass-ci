@@ -17,14 +17,16 @@
 #%module
 #% description: Shifts temporally the maps of a space time dataset.
 #% keyword: temporal
+#% keyword: time management
 #% keyword: shift
+#% keyword: time
 #%end
 
 #%option G_OPT_STDS_INPUT
 #% description: Name of an existing space time dataset
 #%end
 
-#%option G_OPT_T_TYPE
+#%option G_OPT_STDS_TYPE
 #% guidependency: input
 #% guisection: Required
 #%end

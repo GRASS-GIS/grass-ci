@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include <grass/gis.h>
 #include <grass/vector.h>
@@ -247,8 +248,7 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 
     int *features_id;
 
-    int n_node_lns, n_features, i_line, j_line, next_ttb_cat, i_ucat,
-	i_rew_lines, n_lines;
+    int n_node_lns, n_features, i_line, j_line, next_ttb_cat, i_ucat, n_lines;
     int n_nodes, pivot_node, outside_node, isec_start_ucat, isec_end_ucat,
 	node1, node2, found_pt_id;
     int ln_i_id, ln_j_id, ln_i_ucat, ln_j_ucat;
@@ -301,11 +301,6 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
     /* Stores number of category which will be assigned to a next feature added into tucfield. */
     i_ucat = 1;
 
-    /* Stores number of rewritten features. If feature is rewritten, it can be sought by sum of
-       i_ucat + i_rew_lines variables values (id), when was rewritten. 
-       The value is saved into features_id array. */
-    i_rew_lines = 0;
-
     list = G_new_ilist();
 
     /* Every node represents one intersection. */
@@ -328,6 +323,7 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 	    if (features_id[abs(ln_i_id) - 1] < 1) {
 		ltype_i =
 		    Vect_read_line(InMap, line_pnts_i, cats_i, abs(ln_i_id));
+		if (ltype_i <= 0) {G_fatal_error(_("Unable to read line from <%s>."), Vect_get_full_name(InMap));}
 
 		/* If line does not belong into arc layer, skip it. */
 		if (Vect_field_cat_get(cats_i, a_field, list) < 0 ||
@@ -345,8 +341,10 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 	    else {
 		ln_i_id = Vect_get_node_line(InMap, pivot_node, i_line);
 
-		ltype_i = Vect_read_line(OutMap, line_pnts_i, cats_i,
+		ltype_i = V1_read_line_nat(OutMap, line_pnts_i, cats_i,
 					 features_id[abs(ln_i_id) - 1]);
+		 if (ltype_i <= 0) {G_fatal_error(_("Unable to read line from <%s>."), Vect_get_full_name(OutMap));}
+
 		Vect_cat_get(cats_i, tucfield, &ln_i_ucat);
 
 		/* add line direction information to ucat */
@@ -365,6 +363,7 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 		    ltype_j =
 			Vect_read_line(InMap, line_pnts_j, cats_j,
 				       abs(ln_j_id));
+			if (ltype_j <= 0) {G_fatal_error(_("Unable to read line from <%s>."), Vect_get_full_name(InMap));}
 
 		    /* If line does not belong into arc layer, skip it. */
 		    if (Vect_field_cat_get(cats_j, a_field, list) < 0 ||
@@ -445,14 +444,6 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 			(driver, ttb_name, &next_ttb_cat, abs(ln_j_ucat),
 			 isec_start_ucat, isec_end_ucat) < 0) {
 
-			G_free_ilist(list);
-			G_free(features_id);
-
-			Vect_destroy_line_struct(line_pnts_i);
-			Vect_destroy_line_struct(line_pnts_j);
-			Vect_destroy_cats_struct(cats_i);
-			Vect_destroy_cats_struct(cats_j);
-
 			G_fatal_error(_
 				      ("Unable to insert data into turntable."));
 		    }
@@ -472,7 +463,7 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 		    /* Write new line into output map and save it's id to be possible to find it and edit it later 
 		       (when we get to intersection, which is in other end of the line.) */
 		    features_id[abs(ln_j_id) - 1] =
-			Vect_write_line(OutMap, ltype_j, line_pnts_j, cats_j);
+			V1_write_line_nat(OutMap, ltype_j, line_pnts_j, cats_j);
 
 		    /* i, j lines  are equal, it consists only U-turn
 		       Absolute values are there because in case of the lines which have same start and end point, we do not want 
@@ -491,8 +482,9 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 		else {
 		    /* Get modified cats from out map also for j line, which was already written and 
 		       cats differ from the former cats in the line in input map. */
-		    ltype_j = Vect_read_line(OutMap, line_pnts_j, cats_j,
+		    ltype_j = V1_read_line_nat(OutMap, line_pnts_j, cats_j,
 					     features_id[abs(ln_j_id) - 1]);
+			if (ltype_j <= 0) {G_fatal_error(_("Unable to read line from <%s>."), Vect_get_full_name(OutMap));}
 
 		    /* set category in turntable for new turn, which will be written */
 		    Vect_cat_set(cats_j, tfield, next_ttb_cat);
@@ -507,15 +499,9 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 			ln_j_ucat *= -1;
 
 		    /* rewrite j line with the added new category for the turn */
-		    Vect_rewrite_line(OutMap, features_id[abs(ln_j_id) - 1],
+		    features_id[abs(ln_j_id) - 1] = V1_rewrite_line_nat(OutMap, features_id[abs(ln_j_id) - 1],
 				      ltype_j, line_pnts_j, cats_j);
 
-		    /* Because of rewriting, the id of j line was changed, 
-		       therefore we have to update it in features_id. */
-		    features_id[abs(ln_j_id) - 1] = i_ucat + i_rew_lines;
-
-		    /* increment number of rewritten elements, for more see initialization of the variable */
-		    ++i_rew_lines;
 		}
 
 		/* We have to decide which nodes will be connected, which depends on lines directions.
@@ -534,26 +520,18 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 			      ln_i_ucat, line_pnts_i, ln_j_ucat, line_pnts_j,
 			      isec_start_ucat) < 0) {
 
-		    G_free_ilist(list);
-		    G_free(features_id);
-
-		    Vect_destroy_line_struct(line_pnts_i);
-		    Vect_destroy_line_struct(line_pnts_j);
-		    Vect_destroy_cats_struct(cats_i);
-		    Vect_destroy_cats_struct(cats_j);
-
 		    G_fatal_error(_("Unable to insert data into turntable."));
 		}
 
 	    }
 
 	    /* rewrite i line */
-	    Vect_rewrite_line(OutMap, features_id[abs(ln_i_id) - 1],
+	    features_id[abs(ln_i_id) - 1] = V1_rewrite_line_nat(OutMap, features_id[abs(ln_i_id) - 1],
 			      ltype_i, line_pnts_i, cats_i);
 
-	    features_id[abs(ln_i_id) - 1] = i_ucat + i_rew_lines;
-	    i_rew_lines += 1;
+		    
 	}
+
     }
 
     box_List = Vect_new_boxlist(0);
@@ -573,6 +551,7 @@ void populate_turntable(dbDriver * driver, struct Map_info *InMap,
 	for (i_line = 0; i_line < box_List->n_values; i_line++) {
 	    ln_i_id = box_List->id[i_line];
 	    ltype_i = Vect_read_line(InMap, line_pnts_i, cats_i, ln_i_id);
+	    if (ltype_i <= 0) {G_fatal_error(_("Unable to read line from <%s>."), Vect_get_full_name(InMap));}
 
 	    if (ltype_i & GV_POINT) {
 		found_pt_id = ln_i_id;
@@ -658,6 +637,12 @@ void turntable(struct opt *opt)
 	G_fatal_error(_("Unable to open vector map <%s>."),
 		      opt->input->answer);
     }
+
+    if (Vect_open_new(&OutMap, opt->output->answer, WITHOUT_Z) < 1) {
+	G_fatal_error(_("Unable to create vector map <%s>."),
+		      opt->output->answer);
+    }
+
     Vect_set_error_handler_io(&InMap, &OutMap);
 
     type = Vect_option_to_types(opt->type);
@@ -667,28 +652,23 @@ void turntable(struct opt *opt)
     tucfield = Vect_get_field_number(&InMap, opt->tucfield->answer);
 
     if (!Vect_get_field(&InMap, afield))
-	G_fatal_error(_("Arc layer <%s> does not exists in map <%s>."),
+	G_fatal_error(_("Arc layer <%s> does not exist in map <%s>."),
 		      opt->afield_opt->answer, opt->output->answer);
 
     if (Vect_get_field(&InMap, tfield))
 	G_warning(_
-		  ("Layer <%s> already exists in map <%s>.\nIt will be overwritten by tlayer data."),
+		  ("Layer <%s> already exist in map <%s>.\nIt will be overwritten by tlayer data."),
 		  opt->tfield->answer, opt->output->answer);
 
     if (Vect_get_field(&InMap, tucfield))
 	G_warning(_
-		  ("Layer <%s> already exists in map <%s>.\nIt will be overwritten by tuclayer data."),
+		  ("Layer <%s> already exist in map <%s>.\nIt will be overwritten by tuclayer data."),
 		  opt->tucfield->answer, opt->output->answer);
 
     ttb_name = NULL;
     G_asprintf(&ttb_name, "%s_turntable_t_%s_tuc_%s_a_%s",
-	       opt->output->answer, opt->tfield->answer,
+	       Vect_get_name(&OutMap), opt->tfield->answer,
 	       opt->tucfield->answer, opt->afield_opt->answer);
-
-    if (Vect_open_new(&OutMap, opt->output->answer, WITHOUT_Z) < 1) {
-	G_fatal_error(_("Unable to create vector map <%s>."),
-		      opt->output->answer);
-    }
 
     /*Use database and driver as layer with lowest number, 
        if the layer is not present use def settings. */

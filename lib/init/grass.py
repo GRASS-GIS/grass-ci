@@ -18,7 +18,7 @@
 #               command line options for setting the GISDBASE, LOCATION,
 #               and/or MAPSET. Finally it starts GRASS with the appropriate
 #               user interface and cleans up after it is finished.
-# COPYRIGHT:    (C) 2000-2015 by the GRASS Development Team
+# COPYRIGHT:    (C) 2000-2016 by the GRASS Development Team
 #
 #               This program is free software under the GNU General
 #               Public License (>=v2). Read the file COPYING that
@@ -52,6 +52,9 @@ import locale
 # ----+- Python 3 compatibility start -+----
 PY2 = sys.version[0] == '2'
 ENCODING = locale.getdefaultlocale()[1]
+if ENCODING is None:
+    ENCODING = 'UTF-8'
+    print("Default locale not found, using UTF-8")  # intentionally not translatable
 
 
 def to_text_string(obj, encoding=ENCODING):
@@ -92,6 +95,11 @@ else:
 
 # Variables substituted during build process
 if 'GISBASE' in os.environ:
+    # TODO: should this be something like GRASS_PATH?
+    # GISBASE marks complete runtime, so no need to get it here when
+    # setting it up, possible scenario: existing runtime and starting
+    # GRASS in that, we want to overwrite the settings, not to take it
+    # possibly same for GRASS_PROJSHARE and others but maybe not
     gisbase = os.environ['GISBASE']
 else:
     gisbase = "@GISBASE@"
@@ -133,8 +141,9 @@ def clean_env(gisrc):
     env_curr = read_gisrc(gisrc)
     env_new = {}
     for k,v in env_curr.items():
-        if 'MONITOR' not in k:
-            env_new[k] = v
+        if k.endswith('PID') or k.startswith('MONITOR'):
+            continue
+        env_new[k] = v
 
     write_gisrc(env_new, gisrc)
 
@@ -348,7 +357,7 @@ Geographic Resources Analysis Support System (GRASS GIS).
     addon_path_var=_("set additional path(s) to local GRASS modules or user scripts"),
     addon_base_var=_("set additional GISBASE for locally installed GRASS Addons"),
     batch_var=_("shell script to be processed as batch job"),
-    python_var=_("set python shell name to override 'python'"),
+    python_var=_("set Python interpreter name to override 'python'"),
     exec_=_("execute GRASS module or script"),
     exec_detail=_("provided executable will be executed in GRASS session"),
     executable=_("GRASS module, script or any other executable"),
@@ -375,7 +384,15 @@ def get_grass_config_dir():
     """
     if sys.platform == 'win32':
         grass_config_dirname = "GRASS7"
-        directory = os.path.join(os.getenv('APPDATA'), grass_config_dirname)
+        win_conf_path = os.getenv('APPDATA')
+        # this can happen with some strange settings
+        if not win_conf_path:
+            fatal(_("The APPDATA variable is not set, ask your operating"
+                    " system support"))
+        if not os.path.exists(win_conf_path):
+            fatal(_("The APPDATA variable points to directory which does"
+                    " not exist, ask your operating system support"))
+        directory = os.path.join(win_conf_path, grass_config_dirname)
     else:
         grass_config_dirname = ".grass7"
         directory = os.path.join(os.getenv('HOME'), grass_config_dirname)
@@ -573,8 +590,6 @@ def set_paths(grass_config_dir):
     path_prepend(gpath('bin'), 'PATH')
 
     # Set PYTHONPATH to find GRASS Python modules
-    if os.path.exists(gpath('gui', 'wxpython')):
-        path_prepend(gpath('gui', 'wxpython'), 'PYTHONPATH')
     if os.path.exists(gpath('etc', 'python')):
         path_prepend(gpath('etc', 'python'), 'PYTHONPATH')
 
@@ -921,6 +936,10 @@ def set_mapset_interactive(grass_gui):
 
     The gisrc (GRASS environment file) is written at the end.
     """
+    if not os.path.exists(wxpath("gis_set.py")) and grass_gui != 'text':
+        debug("No GUI available, switching to text mode")
+        return False
+    
     # Check for text interface
     if grass_gui == 'text':
         # TODO: maybe this should be removed and solved from outside
@@ -935,6 +954,7 @@ def set_mapset_interactive(grass_gui):
         fatal(_("Invalid user interface specified - <%s>. "
                 "Use the --help option to see valid interface names.") % grass_gui)
 
+    return True
 
 def gui_startup(grass_gui):
     """Start GUI for startup (setting gisrc file)"""
@@ -1161,6 +1181,14 @@ def lock_mapset(mapset_path, force_gislock_removal, user, grass_gui):
     """
     if not os.path.exists(mapset_path):
         fatal(_("Path '%s' doesn't exist") % mapset_path)
+    if not os.access(mapset_path, os.W_OK):
+        error = _("Path '%s' not accessible.") % mapset_path
+        stat_info = os.stat(mapset_path)
+        mapset_uid = stat_info.st_uid
+        if mapset_uid != os.getuid():
+            # GTC %s is mapset's folder path
+            error = "%s\n%s" % (error, _("You are not the owner of '%s'.") % mapset_path)
+        fatal(error)
     # Check for concurrent use
     lockfile = os.path.join(mapset_path, ".gislock")
     ret = call([gpath("etc", "lock"), lockfile, "%d" % os.getpid()])
@@ -1333,12 +1361,28 @@ def start_gui(grass_gui):
     """
     # Start the chosen GUI but ignore text
     debug("GRASS GUI should be <%s>" % grass_gui)
-
+    
     # Check for gui interface
     if grass_gui == "wxpython":
         Popen([os.getenv('GRASS_PYTHON'), wxpath("wxgui.py")])
 
 
+def close_gui():
+    """Close GUI if running"""
+    if gpath('etc', 'python') not in sys.path:
+        sys.path.append(gpath('etc', 'python'))
+    from grass.script import core as gcore  # pylint: disable=E0611
+    env = gcore.gisenv()
+    if 'GUI_PID' not in env:
+        return
+    import signal
+    for pid in env['GUI_PID'].split(','):
+        debug("Exiting GUI with pid={}".format(pid))
+        try:
+            os.kill(int(pid), signal.SIGTERM)
+        except OSError as e:
+            message(_("Unable to close GUI. {}").format(e))
+        
 def clear_screen():
     """Clear terminal"""
     if windows:
@@ -1386,6 +1430,7 @@ r"""
 %-41sg.manual -i
 %-41sg.version -c
 """ % (_("GRASS GIS homepage:"),
+        # GTC Running through: SHELL NAME
        _("This version running through:"),
        shellname, os.getenv('SHELL'),
        _("Help is available with the command:"),
@@ -1444,10 +1489,11 @@ def csh_startup(location, location_name, mapset, grass_env_file):
     f.close()
     writefile(tcshrc, readfile(cshrc))
 
-    exit_val = call([gpath("etc", "run"), os.getenv('SHELL')])
-
+    process = Popen([gpath("etc", "run"), os.getenv('SHELL')])
+    
     os.environ['HOME'] = userhome
-    return exit_val
+    
+    return process
 
 
 def bash_startup(location, location_name, grass_env_file):
@@ -1500,29 +1546,27 @@ PROMPT_COMMAND=grass_prompt\n""" % (_("2D and 3D raster MASKs present"),
     f.write("export HOME=\"%s\"\n" % userhome) # restore user home path
 
     f.close()
-
-    exit_val = call([gpath("etc", "run"), os.getenv('SHELL')])
-
+    
+    process = Popen([gpath("etc", "run"), os.getenv('SHELL')])
+    
     os.environ['HOME'] = userhome
-    return exit_val
+    
+    return process
 
 
 def default_startup(location, location_name):
     if windows:
         os.environ['PS1'] = "GRASS %s> " % (grass_version)
         # "$ETC/run" doesn't work at all???
-        exit_val = subprocess.call([os.getenv('SHELL')])
+        process = subprocess.Popen([os.getenv('SHELL')])
         # TODO: is there a difference between this and clean_temp?
         # TODO: why this is missing in the other startups?
         cleanup_dir(os.path.join(location, ".tmp"))  # remove GUI session files from .tmp
     else:
         os.environ['PS1'] = "GRASS %s (%s):\\w > " % (grass_version, location_name)
-        exit_val = call([gpath("etc", "run"), os.getenv('SHELL')])
+        process = Popen([gpath("etc", "run"), os.getenv('SHELL')])
 
-    # TODO: this seems to be inconsistent, the other two are no fataling
-    if exit_val != 0:
-        fatal(_("Failed to start shell '%s'") % os.getenv('SHELL'))
-    return exit_val
+    return process
 
 
 def done_message():
@@ -1813,7 +1857,11 @@ def main():
     if not params.mapset:
         # Try interactive startup
         # User selects LOCATION and MAPSET if not set
-        set_mapset_interactive(grass_gui)
+        if not set_mapset_interactive(grass_gui):
+            # No GUI available, update gisrc file
+            fatal(_("<{}> requested, but not available. Run GRASS in text "
+                    "mode (-text) or install missing package (usually "
+                    "'grass-gui').").format(grass_gui))
     else:
         # Try non-interactive start up
         if params.create_new and params.geofile:
@@ -1839,10 +1887,9 @@ def main():
     cleaner.mapset_path = mapset_settings.full_mapset
 
     # check and create .gislock file
-    cleaner.lockfile = lock_mapset(
-        mapset_settings.full_mapset, user=user,
-        force_gislock_removal=params.force_gislock_removal,
-        grass_gui=grass_gui)
+    cleaner.lockfile = lock_mapset(mapset_settings.full_mapset, user=user,
+                                   force_gislock_removal=params.force_gislock_removal,
+                                   grass_gui=grass_gui)
 
     # build user fontcap if specified but not present
     make_fontcap()
@@ -1860,7 +1907,6 @@ def main():
         clean_temp()
         sys.exit(0)
     else:
-        start_gui(grass_gui)
         clear_screen()
         show_banner()
         say_hello()
@@ -1870,14 +1916,29 @@ def main():
             message(_("Launching <%s> GUI in the background, please wait...")
                     % grass_gui)
         if sh in ['csh', 'tcsh']:
-            csh_startup(mapset_settings.full_mapset, mapset_settings.location,
-                        mapset_settings.mapset, grass_env_file)
+            shell_process = csh_startup(mapset_settings.full_mapset,
+                                        mapset_settings.location,
+                                        mapset_settings.mapset,
+                                        grass_env_file)
         elif sh in ['bash', 'msh', 'cygwin']:
-            bash_startup(mapset_settings.full_mapset, mapset_settings.location,
-                         grass_env_file)
+            shell_process = bash_startup(mapset_settings.full_mapset,
+                                         mapset_settings.location,
+                                         grass_env_file)
         else:
-            default_startup(mapset_settings.full_mapset,
-                            mapset_settings.location)
+            shell_process = default_startup(mapset_settings.full_mapset,
+                                            mapset_settings.location)
+
+        # start GUI and register shell PID in rc file
+        start_gui(grass_gui)
+        kv = read_gisrc(gisrc)
+        kv['PID'] = str(shell_process.pid)
+        write_gisrc(kv, gisrc)
+        exit_val = shell_process.wait()
+        if exit_val != 0:
+            warning(_("Failed to start shell '%s'") % os.getenv('SHELL'))
+
+        # close GUI if running
+        close_gui()
         # here we are at the end of grass session
         clear_screen()
         # TODO: can we just register this atexit?

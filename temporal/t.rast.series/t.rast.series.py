@@ -18,8 +18,10 @@
 #%module
 #% description: Performs different aggregation algorithms from r.series on all or a subset of raster maps in a space time raster dataset.
 #% keyword: temporal
+#% keyword: aggregation
 #% keyword: series
 #% keyword: raster
+#% keyword: time
 #%end
 
 #%option G_OPT_STRDS_INPUT
@@ -98,7 +100,10 @@ def main():
 
         file.close()
 
-        flag = "z"
+        flag = ""
+        if len(rows) > 1000:
+            grass.warning(_("Processing over 1000 maps: activating -z flag of r.series which slows down processing"))
+            flag += "z"
         if nulls:
             flag += "n"
 

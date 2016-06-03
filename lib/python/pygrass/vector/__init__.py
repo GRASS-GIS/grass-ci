@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 from os.path import join, exists
 import grass.lib.gis as libgis
 libgis.G_gisinit('')
 import grass.lib.vector as libvect
+import ctypes
 
 #
 # import pygrass modules
@@ -176,9 +179,12 @@ class Vector(Info):
 
         """
         self.n_lines += 1
-        if self.table is not None and attrs and cat is not None:
-            if cat not in self._cats:
-                self._cats.append(cat)
+        if attrs and cat is None:
+            cat = (self._cats[-1] if self._cats else 0) + 1
+
+        if cat is not None and cat not in self._cats:
+            self._cats.append(cat)
+            if self.table is not None and attrs is not None:
                 attr = [cat, ]
                 attr.extend(attrs)
                 cur = self.table.conn.cursor()
@@ -242,7 +248,7 @@ class VectorTopo(Vector):
 
         >>> with VectorTopo(test_vector_name, mode='r') as test_vect:
         ...     for feature in test_vect[:7]:
-        ...         print feature.attrs['name']
+        ...         print(feature.attrs['name'])
         ...
         point
         point
@@ -392,12 +398,20 @@ class VectorTopo(Vector):
             >>> from operator import methodcaller as method
             >>> areas.sort(key=method('area'), reverse=True)  # sort the list
             >>> for area in areas[:3]:
-            ...     print area, area.area()
+            ...     print(area, area.area())
             Area(1) 12.0
             Area(2) 8.0
             Area(4) 8.0
-            >>> test_vect.close()
 
+            >>> areas = [area for area in test_vect.viter('areas')]
+            >>> for area in areas:
+            ...     print(area.centroid().cat)
+            3
+            3
+            3
+            3
+
+            >>> test_vect.close()
         """
         if vtype in _GEOOBJ.keys():
             if _GEOOBJ[vtype] is not None:
@@ -521,8 +535,8 @@ class VectorTopo(Vector):
             attr.extend(attrs)
             self.table.update(key=line, values=attr)
         elif self.table is None and attrs:
-            print "Table for vector {name} does not exist, attributes not" \
-                  " loaded".format(name=self.name)
+            print("Table for vector {name} does not exist, attributes not"
+                  " loaded".format(name=self.name))
         libvect.Vect_cat_set(geo_obj.c_cats, self.layer, line)
         result = libvect.Vect_rewrite_line(self.c_mapinfo,
                                            line, geo_obj.gtype,
@@ -547,8 +561,8 @@ class VectorTopo(Vector):
     @must_be_open
     def restore(self, geo_obj):
         if hasattr(geo_obj, 'offset'):
-            if libvect.Vect_restore_line(self.c_mapinfo, geo_obj.id,
-                                         geo_obj.offset) == -1:
+            if libvect.Vect_restore_line(self.c_mapinfo, geo_obj.offset,
+                                         geo_obj.id) == -1:
                 raise GrassError("C funtion: Vect_restore_line.")
         else:
             raise ValueError("The value have not an offset attribute.")
@@ -569,6 +583,278 @@ class VectorTopo(Vector):
             libvect.Vect_set_release_support(self.c_mapinfo)
         super(VectorTopo, self).close(build=build)
 
+    @must_be_open
+    def table_to_dict(self, where=None):
+        """Return the attribute table as a dictionary with the category as keys
+
+            The columns have the order of the self.table.columns.names() list.
+
+            Examples
+
+            >>> from grass.pygrass.vector import VectorTopo
+            >>> from grass.pygrass.vector.basic import Bbox
+            >>> test_vect = VectorTopo(test_vector_name)
+            >>> test_vect.open('r')
+
+            >>> test_vect.table_to_dict()
+            {1: [1, u'point', 1.0], 2: [2, u'line', 2.0], 3: [3, u'centroid', 3.0]}
+
+            >>> test_vect.table_to_dict(where="value > 2")
+            {3: [3, u'centroid', 3.0]}
+
+            >>> test_vect.table_to_dict(where="value > 0")
+            {1: [1, u'point', 1.0], 2: [2, u'line', 2.0], 3: [3, u'centroid', 3.0]}
+
+            >>> test_vect.table.filters.get_sql()
+            u'SELECT cat,name,value FROM vector_doctest_map WHERE value > 0 ORDER BY cat;'
+
+        """
+
+        if self.table is not None:
+            table_dict = {}
+            # Get the category index
+            cat_index = self.table.columns.names().index("cat")
+            # Prepare a filter
+            if where is not None:
+                self.table.filters.where(where)
+
+            self.table.filters.order_by("cat")
+
+            self.table.filters.select(",".join(self.table.columns.names()))
+            # Execute the query and fetch the result
+            cur = self.table.execute()
+            l = cur.fetchall()
+            # Generate the dictionary
+            for entry in l:
+                table_dict[entry[cat_index]] = list(entry)
+
+            return(table_dict)
+
+        return None
+
+    @must_be_open
+    def features_to_wkb_list(self, bbox=None, feature_type="point", field=1):
+        """Return all features of type point, line, boundary or centroid
+           as a list of Well Known Binary representations (WKB)
+           (id, cat, wkb) triplets located in a specific
+           bounding box.
+
+           :param bbox: The boundingbox to search for features,
+                       if bbox=None the boundingbox of the whole
+                       vector map layer is used
+
+           :type bbox: grass.pygrass.vector.basic.Bbox
+
+           :param feature_type: The type of feature that should be converted to
+                                the Well Known Binary (WKB) format. Supported are:
+                               'point'    -> libvect.GV_POINT     1
+                               'line'     -> libvect.GV_LINE      2
+                               'boundary' -> libvect.GV_BOUNDARY  3
+                               'centroid' -> libvect.GV_CENTROID  4
+           :type type: string
+
+           :param field: The category field
+           :type field: integer
+
+           :return: A list of triplets, or None if nothing was found
+
+           The well known binary are stored in byte arrays.
+
+            Examples:
+
+            >>> from grass.pygrass.vector import VectorTopo
+            >>> from grass.pygrass.vector.basic import Bbox
+            >>> test_vect = VectorTopo(test_vector_name)
+            >>> test_vect.open('r')
+
+            >>> bbox = Bbox(north=20, south=-1, east=20, west=-1)
+            >>> result = test_vect.features_to_wkb_list(bbox=bbox,
+            ...                                         feature_type="point")
+            >>> len(result)
+            3
+            >>> for entry in result:
+            ...     f_id, cat, wkb = entry
+            ...     print((f_id, cat, len(wkb)))
+            (1, 1, 21)
+            (2, 1, 21)
+            (3, 1, 21)
+
+            >>> result = test_vect.features_to_wkb_list(bbox=None,
+            ...                                         feature_type="line")
+            >>> len(result)
+            3
+            >>> for entry in result:
+            ...     f_id, cat, wkb = entry
+            ...     print((f_id, cat, len(wkb)))
+            (4, 2, 57)
+            (5, 2, 57)
+            (6, 2, 57)
+
+            >>> result = test_vect.features_to_wkb_list(bbox=bbox,
+            ...                                         feature_type="boundary")
+            >>> len(result)
+            11
+
+            >>> result = test_vect.features_to_wkb_list(bbox=None,
+            ...                                         feature_type="centroid")
+            >>> len(result)
+            4
+
+            >>> for entry in result:
+            ...     f_id, cat, wkb = entry
+            ...     print((f_id, cat, len(wkb)))
+            (19, 3, 21)
+            (18, 3, 21)
+            (20, 3, 21)
+            (21, 3, 21)
+
+            >>> result = test_vect.features_to_wkb_list(bbox=bbox,
+            ...                                         feature_type="blub")
+            Traceback (most recent call last):
+            ...
+            GrassError: Unsupported feature type <blub>, supported are <point,line,boundary,centroid>
+
+            >>> test_vect.close()
+
+        """
+
+        supported = ['point', 'line', 'boundary', 'centroid']
+
+        if feature_type.lower() not in supported:
+            raise GrassError("Unsupported feature type <%s>, "\
+                             "supported are <%s>"%(feature_type,
+                                                   ",".join(supported)))
+
+        if bbox is None:
+            bbox = self.bbox()
+
+        bboxlist = self.find_by_bbox.geos(bbox, type=feature_type.lower(),
+                                          bboxlist_only = True)
+
+        if bboxlist is not None and len(bboxlist) > 0:
+
+            l = []
+            line_p = libvect.line_pnts()
+            line_c = libvect.line_cats()
+            size = ctypes.c_size_t()
+            cat = ctypes.c_int()
+            error = ctypes.c_int()
+
+            for f_id in bboxlist.ids:
+                barray = libvect.Vect_read_line_to_wkb(self.c_mapinfo,
+                                                       ctypes.byref(line_p),
+                                                       ctypes.byref(line_c),
+                                                       f_id,
+                                                       ctypes.byref(size),
+                                                       ctypes.byref(error))
+                if not barray:
+                    if error == -1:
+                        raise GrassError(_("Unable to read line of feature %i"%(f_id)))
+                    if error == -2:
+                        print("Empty feature %i"%(f_id))
+                    continue
+
+                ok = libvect.Vect_cat_get(ctypes.byref(line_c), field,
+                                          ctypes.byref(cat))
+                if ok < 1:
+                    pcat = None
+                else:
+                    pcat = cat.value
+
+                l.append((f_id, pcat, ctypes.string_at(barray, size.value)))
+                libgis.G_free(barray)
+
+            return l
+        return None
+
+    @must_be_open
+    def areas_to_wkb_list(self, bbox=None, field=1):
+        """Return all features of type point, line, boundary or centroid
+           as a list of Well Known Binary representations (WKB)
+           (id, cat, wkb) triplets located in a specific
+           bounding box.
+
+           :param bbox: The boundingbox to search for features,
+                       if bbox=None the boundingbox of the whole
+                       vector map layer is used
+
+           :type bbox: grass.pygrass.vector.basic.Bbox
+
+           :param field: The centroid category field
+           :type field: integer
+
+           :return: A list of triplets, or None if nothing was found
+
+           The well known binary are stored in byte arrays.
+
+            Examples:
+
+            >>> from grass.pygrass.vector import VectorTopo
+            >>> from grass.pygrass.vector.basic import Bbox
+            >>> test_vect = VectorTopo(test_vector_name)
+            >>> test_vect.open('r')
+
+            >>> bbox = Bbox(north=20, south=-1, east=20, west=-1)
+            >>> result = test_vect.areas_to_wkb_list(bbox=bbox)
+            >>> len(result)
+            4
+            >>> for entry in result:
+            ...     a_id, cat, wkb = entry
+            ...     print((a_id, cat, len(wkb)))
+            (1, 3, 225)
+            (2, 3, 141)
+            (3, 3, 93)
+            (4, 3, 141)
+
+            >>> result = test_vect.areas_to_wkb_list()
+            >>> len(result)
+            4
+            >>> for entry in result:
+            ...     a_id, cat, wkb = entry
+            ...     print((a_id, cat, len(wkb)))
+            (1, 3, 225)
+            (2, 3, 141)
+            (3, 3, 93)
+            (4, 3, 141)
+
+            >>> test_vect.close()
+
+
+        """
+        if bbox is None:
+            bbox = self.bbox()
+
+        bboxlist = self.find_by_bbox.areas(bbox, bboxlist_only = True)
+
+        if bboxlist is not None and len(bboxlist) > 0:
+
+            l = []
+            line_c = libvect.line_cats()
+            size = ctypes.c_size_t()
+            cat = ctypes.c_int()
+
+            for a_id in bboxlist.ids:
+                barray = libvect.Vect_read_area_to_wkb(self.c_mapinfo,
+                                                       a_id,
+                                                       ctypes.byref(size))
+                if not barray:
+                    raise GrassError(_("Unable to read area with id %i"%(a_id)))
+
+                pcat = None
+                c_ok = libvect.Vect_get_area_cats(self.c_mapinfo, a_id,
+                                                  ctypes.byref(line_c))
+                if c_ok == 0: # Centroid found
+
+                    ok = libvect.Vect_cat_get(ctypes.byref(line_c), field,
+                                              ctypes.byref(cat))
+                    if ok > 0:
+                        pcat = cat.value
+
+                l.append((a_id, pcat, ctypes.string_at(barray, size.value)))
+                libgis.G_free(barray)
+
+            return l
+        return None
 
 if __name__ == "__main__":
     import doctest

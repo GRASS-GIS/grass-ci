@@ -18,14 +18,14 @@ for details.
 :authors: Soeren Gebbert
 """
 
-from factory import *
+from .factory import *
 
 ###############################################################################
 
 
 def open_old_stds(name, type, dbif=None):
     """This function opens an existing space time dataset and return the
-       created and intialized object of the specified type.
+       created and initialized object of the specified type.
 
        This function will call exit() or raise a
        grass.pygrass.messages.FatalError in case the type is wrong,
@@ -37,7 +37,7 @@ def open_old_stds(name, type, dbif=None):
        :param type: The type of the space time dataset (strd, str3ds, stvds,
                     raster, vector, raster3d)
        :param dbif: The optional database interface to be used
-       
+
        :return: New stds object
 
     """
@@ -63,7 +63,7 @@ def open_old_stds(name, type, dbif=None):
 
     if not sp.is_in_db(dbif):
         dbif.close()
-        msgr.fatal(_("Space time %(sp)s dataset <%(name)s> no found") %
+        msgr.fatal(_("Space time %(sp)s dataset <%(name)s> not found") %
                    {'sp': sp.get_new_map_instance(None).get_type(),
                     'name': name})
 

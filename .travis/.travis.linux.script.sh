@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 # Author: Ivan Mincik, ivan.mincik@gmail.com
 
-./configure --host=x86_64-linux-gnu --build=x86_64-linux-gnu \
+./configure --host=x86_64-linux-gnu \
+            --build=x86_64-linux-gnu \
             --prefix=/usr/lib \
             --sysconfdir=/etc \
             --sharedstatedir=/var \
@@ -24,5 +25,5 @@
             --with-proj-share=/usr/share/proj \
             --with-wxwidgets=/usr/bin/wx-config \
             --with-python \
-            --with-cairo
+            --with-cairo \
 make -j2

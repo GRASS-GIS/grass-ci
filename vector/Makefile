@@ -15,6 +15,7 @@ SUBDIRS = \
 	v.colors.out \
 	v.db.connect \
 	v.db.select \
+	v.decimate \
 	v.delaunay \
 	v.distance \
 	v.drape \
@@ -27,6 +28,7 @@ SUBDIRS = \
 	v.in.ascii \
 	v.in.db \
 	v.in.dxf \
+	v.in.pdal \
 	v.in.region \
 	v.kcv \
 	v.kernel \
@@ -57,6 +59,7 @@ SUBDIRS = \
 	v.normal \
 	v.out.ascii \
 	v.out.dxf \
+	v.out.lidar \
 	v.out.postgis \
 	v.out.pov \
 	v.out.svg \

@@ -44,9 +44,9 @@ WXGUIDIR = os.path.join(os.getenv("GISBASE"), "gui", "wxpython")
 
 
 # this could be placed to functions
-mainMenuFile    = os.path.join(WXGUIDIR, 'xml', 'main_menu.xml')
-toolboxesFile   = os.path.join(WXGUIDIR, 'xml', 'toolboxes.xml')
-wxguiItemsFile  = os.path.join(WXGUIDIR, 'xml', 'wxgui_items.xml')
+mainMenuFile = os.path.join(WXGUIDIR, 'xml', 'main_menu.xml')
+toolboxesFile = os.path.join(WXGUIDIR, 'xml', 'toolboxes.xml')
+wxguiItemsFile = os.path.join(WXGUIDIR, 'xml', 'wxgui_items.xml')
 moduleItemsFile = os.path.join(WXGUIDIR, 'xml', 'module_items.xml')
 
 
@@ -62,12 +62,23 @@ def GetSettingsPath():
         # (these files are always check for existence here)
         return ""
 
-userToolboxesFile = os.path.join(GetSettingsPath(), 'toolboxes', 'toolboxes.xml')
-userMainMenuFile = os.path.join(GetSettingsPath(), 'toolboxes', 'main_menu.xml')
-if not os.path.exists(userToolboxesFile):
-    userToolboxesFile = None
-if not os.path.exists(userMainMenuFile):
-    userMainMenuFile = None
+
+def _getUserToolboxesFile():
+    userToolboxesFile = os.path.join(
+        GetSettingsPath(),
+        'toolboxes', 'toolboxes.xml')
+    if not os.path.exists(userToolboxesFile):
+        userToolboxesFile = None
+    return userToolboxesFile
+
+
+def _getUserMainMenuFile():
+    userMainMenuFile = os.path.join(
+        GetSettingsPath(),
+        'toolboxes', 'main_menu.xml')
+    if not os.path.exists(userMainMenuFile):
+        userMainMenuFile = None
+    return userMainMenuFile
 
 
 def _(string):
@@ -138,7 +149,10 @@ def getMenudataFile(userRootFile, newFile, fallback):
     If something goes wrong during building or user doesn't modify menu,
     default file (from distribution) is returned.
     """
-    _debug(1, "toolboxes.getMenudataFile: {userRootFile}, {newFile}, {fallback}".format(**locals()))
+    _debug(
+        1,
+        "toolboxes.getMenudataFile: {userRootFile}, {newFile}, {fallback}".format(
+            **locals()))
 
     distributionRootFile = os.path.join(WXGUIDIR, 'xml', userRootFile)
     userRootFile = os.path.join(GetSettingsPath(), 'toolboxes', userRootFile)
@@ -156,27 +170,33 @@ def getMenudataFile(userRootFile, newFile, fallback):
 
         if os.path.exists(menudataFile):
             # remove menu file when there is no main_menu and toolboxes
-            if not userToolboxesFile and not userRootFile:
+            if not _getUserToolboxesFile() and not userRootFile:
                 os.remove(menudataFile)
-                _debug(2, "toolboxes.getMenudataFile: no user defined files, menudata deleted")
+                _debug(
+                    2, "toolboxes.getMenudataFile: no user defined files, menudata deleted")
                 return fallback
 
-            if bool(userToolboxesFile) != bool(userRootFile):
-                # always generate new because we don't know if there has been any change
+            if bool(_getUserToolboxesFile()) != bool(userRootFile):
+                # always generate new because we don't know if there has been
+                # any change
                 generateNew = True
-                _debug(2, "toolboxes.getMenudataFile: only one of the user defined files")
+                _debug(
+                    2, "toolboxes.getMenudataFile: only one of the user defined files")
             else:
                 # if newer files -> generate new
                 menudataTime = os.path.getmtime(menudataFile)
-                if userToolboxesFile:
-                    if os.path.getmtime(userToolboxesFile) > menudataTime:
-                        _debug(2, "toolboxes.getMenudataFile: user toolboxes is newer than menudata")
+                if _getUserToolboxesFile():
+                    if os.path.getmtime(
+                            _getUserToolboxesFile()) > menudataTime:
+                        _debug(
+                            2, "toolboxes.getMenudataFile: user toolboxes is newer than menudata")
                         generateNew = True
                 if userRootFile:
                     if os.path.getmtime(userRootFile) > menudataTime:
-                        _debug(2, "toolboxes.getMenudataFile: user root file is newer than menudata")
+                        _debug(
+                            2, "toolboxes.getMenudataFile: user root file is newer than menudata")
                         generateNew = True
-        elif userToolboxesFile or userRootFile:
+        elif _getUserToolboxesFile() or userRootFile:
             _debug(2, "toolboxes.getMenudataFile: no menudata")
             generateNew = True
         else:
@@ -190,7 +210,9 @@ def getMenudataFile(userRootFile, newFile, fallback):
                 # Unfortunately, this is the case can be often: defined
                 # toolboxes but undefined module tree file.
                 _debug(2, "toolboxes.getMenudataFile: creating a tree")
-                tree = createTree(distributionRootFile=distributionRootFile, userRootFile=userRootFile)
+                tree = createTree(
+                    distributionRootFile=distributionRootFile,
+                    userRootFile=userRootFile)
             except ETREE_EXCEPTIONS:
                 _warning(_("Unable to parse user toolboxes XML files. "
                            "Default files will be loaded."))
@@ -203,7 +225,9 @@ def getMenudataFile(userRootFile, newFile, fallback):
                 fh.close()
                 return menudataFile
             except:
-                _debug(2, "toolboxes.getMenudataFile: writing menudata failed, returning fallback file")
+                _debug(
+                    2,
+                    "toolboxes.getMenudataFile: writing menudata failed, returning fallback file")
                 return fallback
         else:
             return menudataFile
@@ -230,10 +254,12 @@ def _createPath(path):
         try:
             os.mkdir(path)
         except OSError as e:
-            # we cannot use GError or similar because the gui doesn't start at all
-            gcore.warning('%(reason)s\n%(detail)s' % 
-                    ({'reason':_('Unable to create toolboxes directory.'),
-                      'detail': str(e)}))
+            # we cannot use GError or similar because the gui doesn't start at
+            # all
+            gcore.warning(
+                '%(reason)s\n%(detail)s' % ({
+                    'reason': _('Unable to create toolboxes directory.'),
+                    'detail': str(e)}))
             return False
     return True
 
@@ -256,8 +282,8 @@ def createTree(distributionRootFile, userRootFile, userDefined=True):
 
     toolboxes = etree.parse(toolboxesFile)
 
-    if userDefined and userToolboxesFile:
-        userToolboxes = etree.parse(userToolboxesFile)
+    if userDefined and _getUserToolboxesFile():
+        userToolboxes = etree.parse(_getUserToolboxesFile())
     else:
         userToolboxes = None
 
@@ -416,7 +442,9 @@ def _expandToolboxes(node, toolboxes):
             idx = items.getchildren().index(subtoolbox)
 
             if has_xpath:
-                toolbox = toolboxes.find('.//toolbox[@name="%s"]' % subtoolbox.get('name'))
+                toolbox = toolboxes.find(
+                    './/toolbox[@name="%s"]' %
+                    subtoolbox.get('name'))
             else:
                 toolbox = None
                 potentialToolboxes = toolboxes.findall('.//toolbox')
@@ -449,7 +477,9 @@ def _expandUserToolboxesItem(node, toolboxes):
     for n in node.findall('./items/user-toolboxes-list'):
         items = node.find('./items')
         idx = items.getchildren().index(n)
-        el = etree.Element('toolbox', attrib={'name': 'GeneratedUserToolboxesList'})
+        el = etree.Element(
+            'toolbox', attrib={
+                'name': 'GeneratedUserToolboxesList'})
         items.insert(idx, el)
         label = etree.SubElement(el, tag='label')
         label.text = _("Custom toolboxes")
@@ -474,12 +504,20 @@ def _removeUserToolboxesItem(root):
 
 def _getAddons():
     try:
-        output = gcore.read_command('g.extension', quiet=True, flags='a')
+        output = gcore.read_command('g.extension', quiet=True, flags='ag')
     except CalledModuleError:
         _warning(_("List of addons cannot be obtained"
                    " because g.extension failed."))
         return []
-    return sorted(output.splitlines())
+
+    flist = []
+    for line in output.splitlines():
+        if not line.startswith('executables'):
+            continue
+        for fexe in line.split('=', 1)[1].split(','):
+            flist.append(fexe)
+
+    return sorted(flist)
 
 
 def _removeAddonsItem(node, addonsNodes):
@@ -602,11 +640,15 @@ def _expandRuntimeModules(node, loadMetadata=True):
             n.text = _escapeXML(','.join(keywords))
             if loadMetadata and not desc:
                 hasErrors = True
-    
+
     if hasErrors:
-        sys.stderr.write(_("WARNING: Some addons failed when loading. "
-                           "Please consider to update your addons by running 'g.extension.all -f'.\n"))
-    
+        # not translatable until toolboxes compilation on Mac is fixed
+        # translating causes importing globalvar, where sys.exit is called
+        sys.stderr.write(
+            "WARNING: Some addons failed when loading. "
+            "Please consider to update your addons by running 'g.extension.all -f'.\n")
+
+
 def _escapeXML(text):
     """Helper function for correct escaping characters for XML.
 
@@ -628,7 +670,7 @@ def _loadMetadata(module):
     try:
         task = gtask.parse_interface(module)
     except ScriptError as e:
-        sys.stderr.write("%s\n%s\n" % (module, e))
+        sys.stderr.write("%s: %s\n" % (module, e))
         return '', ''
 
     return task.get_description(full=True), \
@@ -770,10 +812,10 @@ def module_test():
     """Tests the module using test files included in the current
     directory and in files from distribution.
     """
-    toolboxesFile   = os.path.join(WXGUIDIR, 'xml', 'toolboxes.xml')
+    toolboxesFile = os.path.join(WXGUIDIR, 'xml', 'toolboxes.xml')
     userToolboxesFile = 'data/test_toolboxes_user_toolboxes.xml'
     menuFile = 'data/test_toolboxes_menu.xml'
-    wxguiItemsFile  = os.path.join(WXGUIDIR, 'xml', 'wxgui_items.xml')
+    wxguiItemsFile = os.path.join(WXGUIDIR, 'xml', 'wxgui_items.xml')
     moduleItemsFile = os.path.join(WXGUIDIR, 'xml', 'module_items.xml')
 
     toolboxes = etree.parse(toolboxesFile)

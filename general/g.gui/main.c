@@ -18,6 +18,8 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include <grass/gis.h>
 #include <grass/glocale.h>
 #include <grass/spawn.h>
@@ -102,6 +104,9 @@ int main(int argc, char *argv[])
     }
 
     sprintf(progname, "%s/gui/wxpython/wxgui.py", G_gisbase());
+    if (access(progname, F_OK) == -1)
+        G_fatal_error(_("Your installation doesn't include GUI, exiting."));
+                      
     if (fglaunch->answer) {
         G_message(_("Launching <%s> GUI, please wait..."), type->answer);
         if (rc_file->answer) {

@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     
     tdelim_opt = G_define_standard_option(G_OPT_F_SEP);
     tdelim_opt->key = "text";
-    tdelim_opt->label = "text delimiter";
+    tdelim_opt->label = "Text delimiter";
     tdelim_opt->answer = "doublequote";
     tdelim_opt->description = _("Special characters: doublequote, singlequote");
     tdelim_opt->guisection = _("Input format");
@@ -404,7 +404,7 @@ int main(int argc, char *argv[])
 				Fi->driver);
 
 	    /* Create table */
-	    G_debug(3, db_get_string(&sql));
+	    G_debug(3, "%s", db_get_string(&sql));
 	    if (db_execute_immediate(driver, &sql) != DB_OK) {
 		G_fatal_error(_("Unable to create table: %s"),
 			      db_get_string(&sql));
@@ -535,11 +535,7 @@ int main(int argc, char *argv[])
 	    G_message(_("Populating table..."));
 	    db_commit_transaction(driver);
 	    if (db_close_database_shutdown_driver(driver) == DB_FAILED)
-#ifdef __MINGW32__
-		G_warning("FIXME: db_close_database_shutdown_driver() fails on WinGrass. Ignoring...");
-#else
-		G_fatal_error(_("Could not close attribute table. The DBMI driver did not accept all attributes"));
-#endif
+		G_fatal_error(_("Unable to close attribute table. The DBMI driver did not accept all attributes"));
 	}
 	fclose(tmpascii);
     }

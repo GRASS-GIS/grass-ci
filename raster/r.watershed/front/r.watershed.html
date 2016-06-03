@@ -59,7 +59,8 @@ avoid distortions.  The elevation map need not be sink-filled because
 the module uses a least-cost algorithm.
 
 <p>
-Map of actual depressions or sinkholes in the landscape that are large
+Option <b>depression</b> specifies the optional map of actual
+depressions or sinkholes in the landscape that are large
 enough to slow and store surface runoff from a storm event.  All cells
 that are not NULL and not zero indicate depressions. Water will flow
 into but not out of depressions.
@@ -79,10 +80,10 @@ given, <em>r.watershed</em> assumes no disturbed land. This input is
 used for the RUSLE calculations.
 
 <p>
-Option <b>blocking</b> specifies terrain that will block overland
-surface flow.  errain that will block overland surface flow and
-restart the slope length for the RUSLE.  All cells that are not NULL
-and not zero indicate blocking terrain.
+Option <b>blocking</b> specifies terrain that will block overland 
+surface flow. Blocking cells and streams stop the slope length for the 
+RUSLE.  All cells that are not NULL and not zero indicate blocking 
+terrain.
 
 <p>
 Option <b>threshold</b> specifies the minimum size of an exterior
@@ -112,15 +113,27 @@ geographic region. Thus, any cells with negative values cannot have
 their surface runoff and sedimentation yields calculated accurately.
 
 <p>
-Output <b>tci</b> raster map contains topographic index TCI is
+Output <b>tci</b> raster map contains topographic index TCI,
 computed as
 <tt>ln(&alpha; / tan(&beta;))</tt> where &alpha; is the cumulative
 upslope area draining through a point per unit contour length and
 <tt>tan(&beta;)</tt> is the local slope angle. The TCI reflects the
 tendency of water to accumulate at any point in the catchment and the
-tendency for gravitaional forces to move that water downslope (Quinn
+tendency for gravitational forces to move that water downslope (Quinn
 et al. 1991).  This value will be negative if <tt>&alpha; /
 tan(&beta;) &lt; 1</tt>.
+
+<p>
+Output <b>spi</b> raster map contains stream power index SPI,
+computed as
+<tt>&alpha; * tan(&beta;)</tt> where &alpha; is the cumulative
+upslope area draining through a point per unit contour length and
+<tt>tan(&beta;)</tt> is the local slope angle. The SPI reflects the
+power of water flow at any point in the catchment and the
+tendency for gravitational forces to move that water downslope (Moore
+et al. 1991).  This value will be negative if <tt>&alpha; &lt; 0</tt>, 
+i.e. for cells with possible surface runoff from outside of the current
+geographic region.
 
 <p>
 Output <b>drainage</b> raster map contains drainage direction.
@@ -131,13 +144,13 @@ that the surface runoff will travel from that cell.  The value 0
 depression input map).  Negative values indicate that surface runoff
 is leaving the boundaries of the current geographic region.  The
 absolute value of these negative cells indicates the direction of
-flow.
+flow. For MFD, drainage indicates the direction of maximum flow.
 
 <p>
 The output <b>basin</b> map contains unique label for each watershed
 basin. Each basin will be given a unique positive even integer.  Areas
 along edges may not be large enough to create an exterior watershed
-basin.  0 values indicate that the cell is not part of a complete
+basin.  NULL values indicate that the cell is not part of a complete
 watershed basin in the current geographic region.
 
 <p>
@@ -484,6 +497,12 @@ Soil Loss Equation</i>, <b>Transactions of the ASAE</b> Vol 30(5).
 drainage networks from massive, radar-based elevation models with least 
 cost path search</i>, <b>Hydrol. Earth Syst. Sci.</b> Vol 15, 667-678.<br>
 DOI: <a href="http://dx.doi.org/10.5194/hess-15-667-2011">10.5194/hess-15-667-2011</a>
+
+<li>
+Moore I.D., Grayson R.B., Ladson A.R. (1991). <i>Digital terrain 
+modelling: a review of hydrogical, geomorphological, and biological 
+applications</i>, <b>Hydrological Processes</b>, Vol 5(1), 3-30<br> 
+DOI: <a href="http://dx.doi.org/10.1002/hyp.3360050103">10.1002/hyp.3360050103</a>
 
 <li>Quinn P., K. Beven K., Chevallier P., Planchon O. (1991). <i>The 
 prediction of hillslope flow paths for distributed hydrological modelling 

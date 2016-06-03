@@ -19,7 +19,11 @@ before_install:
 
 install:
   - ./.travis/.travis.$TRAVIS_OS_NAME.install.sh
-  
+
+env:
+  global:
+    - CFLAGS="-Werror=implicit-function-declaration"
+
 script:
   - ./.travis/.travis.$TRAVIS_OS_NAME.script.sh
 
@@ -31,6 +35,8 @@ script:
 ##                 - wenzeslaus@gmail.com
 ##                 - rainer@krugs.de
 ##             on_success: change
+##             on_failure: always
+
 
 ## TODO Change so that the .travis.yml files are in one repo and the
 ## grass repo is downloaded automatically

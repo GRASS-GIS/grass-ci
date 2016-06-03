@@ -96,8 +96,6 @@ class Info(object):
         if not utils.is_clean_name(newname):
             str_err = _("Map name {0} not valid")
             raise ValueError(str_err.format(newname))
-        if self.exist():
-            self.rename(newname)
         self._name = newname
 
     name = property(fget=_get_name, fset=_set_name,
@@ -162,7 +160,10 @@ class Info(object):
     def _get_map_date(self):
         """Private method to obtain the Vector map date"""
         date_str = libvect.Vect_get_map_date(self.c_mapinfo)
-        return datetime.datetime.strptime(date_str, self.date_fmt)
+        try:
+            return datetime.datetime.strptime(date_str, self.date_fmt)
+        except:
+            return date_str
 
     def _set_map_date(self, datetimeobj):
         """Private method to change the Vector map date"""
@@ -351,18 +352,19 @@ class Info(object):
         if mode == 'w':
             openvect = libvect.Vect_open_new(self.c_mapinfo, self.name, with_z)
             self.dblinks = DBlinks(self.c_mapinfo)
-            if tab_cols:
-                # create a link
-                link = Link(layer,
-                            link_name if link_name else self.name,
-                            tab_name if tab_name else self.name,
-                            link_key, link_db, link_driver)
-                # add the new link
-                self.dblinks.add(link)
-                # create the table
-                table = link.table()
-                table.create(tab_cols)
-                table.conn.commit()
+
+        if mode in ('w', 'rw') and tab_cols:
+            # create a link
+            link = Link(layer,
+                        link_name if link_name else self.name,
+                        tab_name if tab_name else self.name,
+                        link_key, link_db, link_driver)
+            # add the new link
+            self.dblinks.add(link)
+            # create the table
+            table = link.table()
+            table.create(tab_cols)
+            table.conn.commit()
 
         # check the C function result.
         if openvect == -1:
@@ -377,8 +379,7 @@ class Info(object):
             self.layer = self.dblinks.by_layer(layer).layer
             self.table = self.dblinks.by_layer(layer).table()
             self.n_lines = self.table.n_rows()
-        self.writeable = False
-        self.mapset == utils.getenv("MAPSET")
+        self.writeable =  self.mapset == utils.getenv("MAPSET")
         # Initialize the finder
         self.find = {'by_point': PointFinder(self.c_mapinfo, self.table,
                                              self.writeable),

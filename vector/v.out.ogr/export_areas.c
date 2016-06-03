@@ -77,7 +77,7 @@ int export_areas_single(struct Map_info *In, int field, int donocat,
                        * not labeled */
         }
         
-        /* find correspoding area */
+        /* find corresponding area */
         area = Vect_get_centroid_area(In, centroid);
         if (area == 0)
             continue;
@@ -184,7 +184,7 @@ int export_areas_multi(struct Map_info *In, int field, int donocat,
                                 "Category %d not found in line %d, field %d"),
                               cat, line, field);
             
-            /* find correspoding area */
+            /* find corresponding area */
             area = Vect_get_centroid_area(In, line);
             if (area == 0)
                 continue;
@@ -241,7 +241,7 @@ int export_areas_multi(struct Map_info *In, int field, int donocat,
                        * not labeled */
         }
 
-        /* find correspoding area */
+        /* find corresponding area */
 	line = Vect_get_next_line_id(In);
         area = Vect_get_centroid_area(In, line);
         if (area == 0)
@@ -298,8 +298,11 @@ OGRGeometryH create_polygon(struct Map_info *In, int area,
     
     /* Area */
     for (j = 0; j < Points->n_points; j++) {
-        OGR_G_AddPoint(ring, Points->x[j], Points->y[j],
-                       Points->z[j]);
+        if (Vect_is_3d(In))
+            OGR_G_AddPoint(ring, Points->x[j], Points->y[j],
+                           Points->z[j]);
+	else
+            OGR_G_AddPoint_2D(ring, Points->x[j], Points->y[j]);
     }
     
     OGR_G_AddGeometryDirectly(Ogr_geometry, ring);
@@ -311,8 +314,11 @@ OGRGeometryH create_polygon(struct Map_info *In, int area,
         
         ring = OGR_G_CreateGeometry(wkbLinearRing);
         for (j = 0; j < Points->n_points; j++) {
-            OGR_G_AddPoint(ring, Points->x[j], Points->y[j],
-                           Points->z[j]);
+	    if(Vect_is_3d(In))
+                OGR_G_AddPoint(ring, Points->x[j], Points->y[j],
+                               Points->z[j]);
+	    else
+                OGR_G_AddPoint_2D(ring, Points->x[j], Points->y[j]);
         }
         OGR_G_AddGeometryDirectly(Ogr_geometry, ring);
     }

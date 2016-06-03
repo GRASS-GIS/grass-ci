@@ -1,6 +1,6 @@
 MODULE_TOPDIR = ../..
 
-SUBDIRS = docs animation mapswipe gmodeler rlisetup psmap dbmgr vdigit iclass gcp timeline tplot
+SUBDIRS = docs animation datacatalog mapswipe gmodeler rlisetup psmap dbmgr vdigit iclass gcp timeline tplot
 EXTRA_CLEAN_FILES = menustrings.py build_ext.pyc xml/menudata.xml xml/module_tree_menudata.xml */*.pyc
 
 include $(MODULE_TOPDIR)/include/Make/Dir.make
@@ -9,16 +9,16 @@ include $(MODULE_TOPDIR)/include/Make/Python.make
 DSTDIR = $(GUIDIR)/wxpython
 
 SRCFILES := $(wildcard icons/*.py scripts/*.py xml/*) \
-	$(wildcard animation/* core/*.py dbmgr/* gcp/*.py gmodeler/* \
-	gui_core/*.py iclass/* lmgr/*.py location_wizard/*.py mapwin/*.py mapdisp/*.py \
-	mapswipe/* modules/*.py nviz/*.py psmap/* rdigit/* rlisetup/* timeline/* vdigit/* \
-	vnet/*.py web_services/*.py wxplot/*.py iscatt/*.py tplot/*) \
+	$(wildcard animation/*.py core/*.py datacatalog/*.py dbmgr/*.py gcp/*.py gmodeler/*.py \
+	gui_core/*.py iclass/*.py lmgr/*.py location_wizard/*.py mapwin/*.py mapdisp/*.py \
+	mapswipe/*.py modules/*.py nviz/*.py psmap/*.py rdigit/*.py rlisetup/*.py timeline/*.py vdigit/*.py \
+	vnet/*.py web_services/*.py wxplot/*.py iscatt/*.py tplot/*.py) \
 	gis_set.py gis_set_error.py wxgui.py README
 
 DSTFILES := $(patsubst %,$(DSTDIR)/%,$(SRCFILES)) \
 	$(patsubst %.py,$(DSTDIR)/%.pyc,$(filter %.py,$(SRCFILES)))
 
-PYDSTDIRS := $(patsubst %,$(DSTDIR)/%,animation core dbmgr gcp gmodeler \
+PYDSTDIRS := $(patsubst %,$(DSTDIR)/%,animation core datacatalog dbmgr gcp gmodeler \
 	gui_core iclass lmgr location_wizard mapwin mapdisp modules nviz psmap \
 	mapswipe vdigit wxplot web_services rdigit rlisetup vnet timeline iscatt tplot)
 
@@ -54,7 +54,6 @@ menustrings.py: core/menutree.py $(DSTDIR)/xml/menudata.xml $(DSTDIR)/xml/module
 $(DSTDIR)/xml/module_items.xml: tools/build_modules_xml.py
 	@echo "Generating interface description for all modules..."
 	$(call run_grass,$(PYTHON) $< > $@)
-	$(call run_grass,$(PYTHON) $< "validate" $@)
 
 $(PYDSTDIRS): %: | $(DSTDIR)
 	$(MKDIR) $@

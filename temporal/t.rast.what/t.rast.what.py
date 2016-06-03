@@ -20,8 +20,9 @@
 #%module
 #% description: Sample a space time raster dataset at specific vector point coordinates and write the output to stdout using different layouts
 #% keyword: temporal
-#% keyword: raster
 #% keyword: sampling
+#% keyword: raster
+#% keyword: time
 #%end
 
 #%option G_OPT_V_INPUT
@@ -66,7 +67,7 @@
 #%option
 #% key: layout
 #% type: string
-#% description: The layout of the ouput. One point per row (row), one point per column (col), all timsteps in one row (timerow)
+#% description: The layout of the output. One point per row (row), one point per column (col), all timsteps in one row (timerow)
 #% required: no
 #% multiple: no
 #% options: row, col, timerow
@@ -192,8 +193,6 @@ def main(options, flags):
     #if output_cat is True:
     #    flags += "i"
 
-
-
     # Configure the r.what module
     if points: 
         r_what = pymod.Module("r.what", map="dummy", 
@@ -307,7 +306,6 @@ def one_point_per_row_output(separator, output_files, output_time_list,
             out_file.write("x%(sep)sy%(sep)sstart%(sep)send%(sep)svalue\n"\
                        %({"sep":separator}))
 
-    
     for count in range(len(output_files)):
         file_name = output_files[count]
         gscript.verbose(_("Transforming r.what output file %s"%(file_name)))
@@ -394,13 +392,13 @@ def one_point_per_col_output(separator, output_files, output_time_list,
 
         first = False
 
-        for col in xrange(num_cols - 3):
+        for col in range(num_cols - 3):
             start, end = output_time_list[count][col].get_temporal_extent_as_tuple()
             time_string = "%(start)s%(sep)s%(end)s"\
                                %({"start":str(start), "end":str(end),
                                   "sep":separator})
             out_file.write(time_string)
-            for row in xrange(len(matrix)):
+            for row in range(len(matrix)):
                 value = matrix[row][col + 3]
                 out_file.write("%(sep)s%(value)s"\
                                    %({"sep":separator,
@@ -450,7 +448,7 @@ def one_point_per_timerow_output(separator, output_files, output_time_list,
 
         lines = in_file.readlines()
 
-        for i in xrange(len(lines)):
+        for i in range(len(lines)):
             cols = lines[i].split(separator)
 
             if first is True:

@@ -17,6 +17,8 @@
 #% description: Splits a raster map into red, green and blue maps.
 #% keyword: raster
 #% keyword: RGB
+#% keyword: separate
+#% keyword: split
 #%end
 #%option G_OPT_R_INPUT
 #%end
@@ -34,6 +36,9 @@
 #% key: blue
 #% description: Blue channel raster map name
 #% required: no
+#%end
+#%rules
+#% required: red, green, blue
 #%end
 
 import grass.script as gscript

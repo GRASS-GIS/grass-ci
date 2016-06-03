@@ -60,9 +60,10 @@ Usage::
 
     # import (some) GRASS Python bindings
     import grass.script as gscript
+    import grass.script.setup as gsetup
 
     # launch session
-    rcfile = gscript.setup.init(gisbase, gisdb, location, mapset)
+    rcfile = gsetup.init(gisbase, gisdb, location, mapset)
 
     # example calls
     gscript.message('Current GRASS GIS 7 environment:')
@@ -109,6 +110,13 @@ def write_gisrc(dbase, location, mapset):
     return gisrc
 
 
+def set_gui_path():
+    """Insert wxPython GRASS path to sys.path."""
+    gui_path = os.path.join(os.environ['GISBASE'], 'gui', 'wxpython')
+    if gui_path and gui_path not in sys.path:
+        sys.path.insert(0, gui_path)
+
+
 # TODO: there should be a function to do the clean up
 # (unset the GISRC and delete the file)
 def init(gisbase, dbase='', location='demolocation', mapset='PERMANENT'):
@@ -141,6 +149,7 @@ def init(gisbase, dbase='', location='demolocation', mapset='PERMANENT'):
     :param dbase: path to GRASS database (default: '')
     :param location: location name (default: 'demolocation')
     :param mapset: mapset within given location (default: 'PERMANENT')
+    
     :returns: path to ``gisrc`` file (to be deleted later)
     """
     # TODO: why we don't set GISBASE?
@@ -171,8 +180,13 @@ def init(gisbase, dbase='', location='demolocation', mapset='PERMANENT'):
 
     os.environ['GIS_LOCK'] = str(os.getpid())
 
-    # Set PYTHONPATH to find GRASS Python modules
-    # TODO: isn't this useless? user already imported this somehow
+    # Set GRASS_PYTHON and PYTHONPATH to find GRASS Python modules
+    if not os.getenv('GRASS_PYTHON'):
+        if sys.platform == 'win32':
+            os.environ['GRASS_PYTHON'] = "python.exe"
+        else:
+            os.environ['GRASS_PYTHON'] = "python"
+    
     path = os.getenv('PYTHONPATH')
     etcpy = os.path.join(gisbase, 'etc', 'python')
     if path:

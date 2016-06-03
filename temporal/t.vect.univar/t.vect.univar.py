@@ -19,9 +19,14 @@
 #% keyword: temporal
 #% keyword: statistics
 #% keyword: vector
+#% keyword: time
 #%end
 
 #%option G_OPT_STVDS_INPUT
+#%end
+
+#%option G_OPT_F_OUTPUT
+#% required: no
 #%end
 
 #%option G_OPT_V_FIELD
@@ -47,7 +52,7 @@
 #%end
 
 #%option G_OPT_F_SEP
-#% description: Field separator character between the output columns
+#% label: Field separator character between the output columns
 #% guisection: Formatting
 #%end
 
@@ -71,6 +76,7 @@ def main():
 
     # Get the options
     input = options["input"]
+    output = options["output"]
     twhere = options["twhere"]
     layer = options["layer"]
     type = options["type"]
@@ -83,8 +89,13 @@ def main():
     # Make sure the temporal database exists
     tgis.init()
 
+    if not output:
+        output = None
+    if output == "-":
+        output = None
+
     tgis.print_vector_dataset_univar_statistics(
-        input, twhere, layer, type, column, where, extended, header, separator)
+        input, output, twhere, layer, type, column, where, extended, header, separator)
 
 if __name__ == "__main__":
     options, flags = grass.parser()

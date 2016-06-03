@@ -1,7 +1,7 @@
 <h2>DESCRIPTION</h2>
 
-t.rast.algebra performs temporal and spatial map algebra operations on space time raster datasets (STRDS)
-by using the temporal raster algebra.
+t.rast.algebra performs temporal and spatial map algebra operations on
+space time raster datasets (STRDS) by using the temporal raster algebra.
 
 <h3>PROGRAM USE</h3>
 The module expects an <b>expression</b> as input parameter in the following form: <p>
@@ -246,7 +246,7 @@ compared by logical operators and evaluated for each map of the STDS and
 the related maps.
 For complex relations the comparison operator can be used to combine conditions: 
 <br>
-The structure is similar to the select operator with the extention of an aggregation operator: 
+The structure is similar to the select operator with the extension of an aggregation operator: 
 {"comparison operator", "topological relations", aggregation operator, "temporal operator"}
 <br>
 This aggregation operator (| or &) define the behaviour if a map is related the more 
@@ -331,10 +331,8 @@ int(x)                  convert x to integer [ truncates ]
 log(x)                  natural log of x
 sqrt(x)                 square root of x
 tan(x)                  tangent of x (x is in degrees)
-round(x)		            round x to nearest integer
-sin(x)			            sine of x (x is in degrees)
-sqrt(x)			            square root of x
-tan(x)			            tangent of x (x is in degrees)
+round(x)		round x to nearest integer
+sin(x)			sine of x (x is in degrees)
 isnull(x)               check if x = NULL
 isntnull(x)             check if x is not NULL
 null                    set null value

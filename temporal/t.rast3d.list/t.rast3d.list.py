@@ -21,6 +21,7 @@
 #% keyword: list
 #% keyword: raster3d
 #% keyword: voxel
+#% keyword: time
 #%end
 
 #%option G_OPT_STR3DS_INPUT
@@ -62,8 +63,12 @@
 #%end
 
 #%option G_OPT_F_SEP
-#% description: Field separator character between the output columns
+#% label: Field separator character between the output columns
 #% guisection: Formatting
+#%end
+
+#%option G_OPT_F_OUTPUT
+#% required: no
 #%end
 
 #%flag
@@ -88,12 +93,13 @@ def main():
     separator = grass.separator(options["separator"])
     method = options["method"]
     header = flags["s"]
+    output = options["output"]
 
     # Make sure the temporal database exists
     tgis.init()
 
-    tgis.list_maps_of_stds(
-        "str3ds", input, columns, order, where, separator, method, header)
+    tgis.list_maps_of_stds("str3ds", input, columns, order, where, separator,
+                           method, header, outpath=output)
 
 if __name__ == "__main__":
     options, flags = grass.parser()

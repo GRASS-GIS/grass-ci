@@ -3,7 +3,7 @@
   
   \brief GIS Library - Argument parsing functions (standard options)
   
-  (C) 2001-2014 by the GRASS Development Team
+  (C) 2001-2016 by the GRASS Development Team
   
   This program is free software under the GNU General Public License
   (>=v2). Read the file COPYING that comes with GRASS for details.
@@ -25,7 +25,7 @@
   parameter <i>opt</i>.
 
   Valid parameters are defined by the STD_OPT enum in the file gis.h.
-  A list of valid parameter values sorted to groups is bellow.
+  A list of valid parameter values sorted to groups is below.
 
   This function allocates memory for the Option structure and returns a
   pointer to this memory.
@@ -362,7 +362,7 @@ struct Option *G_define_standard_option(int opt)
 	Opt->type = TYPE_STRING;
 	Opt->key_desc = "name";
 	Opt->required = YES;
-	Opt->gisprompt = "old,grid3,3d-raster";
+	Opt->gisprompt = "old,grid3,raster_3d";
 	Opt->description = _("Name of input 3D raster map");
 	break;
     case G_OPT_R3_INPUTS:
@@ -371,7 +371,7 @@ struct Option *G_define_standard_option(int opt)
 	Opt->key_desc = "name";
 	Opt->required = YES;
 	Opt->multiple = YES;
-	Opt->gisprompt = "old,grid3,3d-raster";
+	Opt->gisprompt = "old,grid3,raster_3d";
 	Opt->description = _("Name of input 3D raster map(s)");
 	break;
     case G_OPT_R3_OUTPUT:
@@ -379,7 +379,7 @@ struct Option *G_define_standard_option(int opt)
 	Opt->type = TYPE_STRING;
 	Opt->key_desc = "name";
 	Opt->required = YES;
-	Opt->gisprompt = "new,grid3,3d-raster";
+	Opt->gisprompt = "new,grid3,raster_3d";
 	Opt->description = _("Name for output 3D raster map");
 	break;
     case G_OPT_R3_MAP:
@@ -387,7 +387,7 @@ struct Option *G_define_standard_option(int opt)
 	Opt->type = TYPE_STRING;
 	Opt->key_desc = "name";
 	Opt->required = YES;
-	Opt->gisprompt = "old,grid3,3d-raster";
+	Opt->gisprompt = "old,grid3,raster_3d";
 	Opt->description = _("Name of 3D raster map");
 	break;
     case G_OPT_R3_MAPS:
@@ -396,7 +396,7 @@ struct Option *G_define_standard_option(int opt)
 	Opt->key_desc = "name";
 	Opt->required = YES;
 	Opt->multiple = YES;
-	Opt->gisprompt = "old,grid3,3d-raster";
+	Opt->gisprompt = "old,grid3,raster_3d";
 	Opt->description = _("Name of 3D raster map(s)");
 	break;
     case G_OPT_R3_TYPE:
@@ -659,26 +659,26 @@ struct Option *G_define_standard_option(int opt)
 	break;
 	
     case G_OPT_M_LOCATION:
-    Opt->key = "location";
-    Opt->type = TYPE_STRING;
-    Opt->required = NO;
-    Opt->multiple = NO;
-    Opt->label = _("Location name");
-    Opt->description = _("Location name (not location path)");
-    Opt->gisprompt = "old,location,location";
-    Opt->key_desc = "name";
-    break;
+	Opt->key = "location";
+	Opt->type = TYPE_STRING;
+	Opt->required = NO;
+	Opt->multiple = NO;
+	Opt->label = _("Location name");
+	Opt->description = _("Location name (not location path)");
+	Opt->gisprompt = "old,location,location";
+	Opt->key_desc = "name";
+	break;
 
     case G_OPT_M_DBASE:
-    Opt->key = "dbase";
-    Opt->type = TYPE_STRING;
-    Opt->required = NO;
-    Opt->multiple = NO;
-    Opt->label = _("GRASS GIS database directory");
-    Opt->description = _("Default: path to the current GRASS GIS database");
-    Opt->gisprompt = "old,dbase,dbase";
-    Opt->key_desc = "path";
-    break;
+	Opt->key = "dbase";
+	Opt->type = TYPE_STRING;
+	Opt->required = NO;
+	Opt->multiple = NO;
+	Opt->label = _("GRASS GIS database directory");
+	Opt->description = _("Default: path to the current GRASS GIS database");
+	Opt->gisprompt = "old,dbase,dbase";
+	Opt->key_desc = "path";
+	break;
 
     case G_OPT_M_COORDS:
 	Opt->key = "coordinates";
@@ -891,7 +891,7 @@ struct Option *G_define_standard_option(int opt)
   \brief Create standardised Flag structure.
   
   This function will create a standardised Flag structure defined by
-  parameter <i>flag</i>. A list of valid parameters bellow. It
+  parameter <i>flag</i>. A list of valid parameters below. It
   allocates memory for the Flag structure and returns a pointer to
   this memory.
   
@@ -918,7 +918,8 @@ struct Flag *G_define_standard_flag(int flag)
 	break;
     case G_FLG_V_TOPO:
 	Flg->key = 'b';
-	Flg->description = _("Do not build topology");
+        Flg->label = _("Do not build topology");
+        Flg->description = _("Advantageous when handling a large number of points");
 	break;
     }
     

@@ -488,7 +488,7 @@ AC_DEFUN([SC_CONFIG_CFLAGS], [
     case $host in
         *-linux-* | *-gnu* | *-kfreebsd*-gnu)
 	    SHLIB_CFLAGS="-fPIC"
-            SHLIB_LD_FLAGS=""
+            SHLIB_LD_FLAGS="-Wl,-soname,\$(notdir \$[@])"
 	    SHLIB_SUFFIX=".so"
 	    SHLIB_LD="${CC} -shared"
             LDFLAGS="-Wl,--export-dynamic"
@@ -501,7 +501,7 @@ AC_DEFUN([SC_CONFIG_CFLAGS], [
             LDFLAGS="-Wl,--export-dynamic"
 	    LD_LIBRARY_PATH_VAR="PATH"
 	    ;;
-        *-pc-mingw32 | *-pc-msys)
+        *-pc-mingw32 | *-w64-mingw32 | *-pc-msys)
             SHLIB_SUFFIX=".dll"
             SHLIB_LD="${CC} -shared"
             LDFLAGS="-Wl,--export-dynamic,--enable-runtime-pseudo-reloc"

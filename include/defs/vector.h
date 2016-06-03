@@ -134,6 +134,7 @@ void Vect_destroy_boxlist(struct boxlist *);
 
 /* Bounding box (MBR) */
 int Vect_point_in_box(double, double, double, const struct bound_box *);
+int Vect_point_in_box_2d(double, double, const struct bound_box *);
 int Vect_box_overlap(const struct bound_box *, const struct bound_box *);
 int Vect_box_copy(struct bound_box *, const struct bound_box *);
 int Vect_box_extend(struct bound_box *, const struct bound_box *);
@@ -159,6 +160,9 @@ int Vect_cidx_dump(const struct Map_info *, FILE *);
 int Vect_cidx_save(struct Map_info *);
 int Vect_cidx_open(struct Map_info *, int);
 
+/* Create/destroy Map_info */
+struct Map_info *Vect_new_map_struct(void);
+void Vect_destroy_map_struct(struct Map_info *);
 
 /* Set/get map header info */
 int Vect_read_header(struct Map_info *);
@@ -256,7 +260,7 @@ off_t Vect_write_line(struct Map_info *, int, const struct line_pnts *,
 off_t Vect_rewrite_line(struct Map_info *, off_t, int, const struct line_pnts *,
                       const struct line_cats *);
 int Vect_delete_line(struct Map_info *, off_t);
-int Vect_restore_line(struct Map_info *, off_t);
+int Vect_restore_line(struct Map_info *, off_t, off_t);
 
 int Vect_get_num_dblinks(const struct Map_info *);
 
@@ -313,7 +317,7 @@ int Vect_select_lines_by_box(struct Map_info *, const struct bound_box *,
 int Vect_select_areas_by_box(struct Map_info *, const struct bound_box *,
                              struct boxlist *);
 int Vect_select_isles_by_box(struct Map_info *, const struct bound_box *,
-			     struct boxlist *);
+                 struct boxlist *);
 int Vect_select_nodes_by_box(struct Map_info *, const struct bound_box *,
                              struct ilist *);
 int Vect_find_node(struct Map_info *, double, double, double, double, int);
@@ -553,8 +557,8 @@ int V1_delete_line_pg(struct Map_info *, off_t);
 int V2_delete_line_nat(struct Map_info *, off_t);
 int V2_delete_line_sfa(struct Map_info *, off_t);
 int V2_delete_line_pg(struct Map_info *, off_t);
-int V1_restore_line_nat(struct Map_info *, off_t);
-int V2_restore_line_nat(struct Map_info *, off_t);
+int V1_restore_line_nat(struct Map_info *, off_t, off_t);
+int V2_restore_line_nat(struct Map_info *, off_t, off_t);
 off_t V1_write_line_nat(struct Map_info *, int, const struct line_pnts *,
                         const struct line_cats *);
 off_t V1_write_line_ogr(struct Map_info *, int, const struct line_pnts *,
@@ -595,10 +599,19 @@ int Vect_attach_centroids(struct Map_info *, const struct bound_box *);
     /* GEOS support */
 #ifdef HAVE_GEOS
 GEOSGeometry *Vect_read_line_geos(struct Map_info *, int, int*);
-GEOSGeometry *Vect_line_to_geos(struct Map_info *, const struct line_pnts*, int);
+GEOSGeometry *Vect_line_to_geos(const struct line_pnts*, int, int);
 GEOSGeometry *Vect_read_area_geos(struct Map_info *, int);
 GEOSCoordSequence *Vect_get_area_points_geos(struct Map_info *, int);
 GEOSCoordSequence *Vect_get_isle_points_geos(struct Map_info *, int);
+char *Vect_line_to_wkt(const struct line_pnts *, int, int);
+unsigned char *Vect_line_to_wkb(const struct line_pnts *,
+                                int, int, size_t *);
+char *Vect_read_area_to_wkt(struct Map_info *, int);
+unsigned char *Vect_read_area_to_wkb(struct Map_info *, int, size_t *);
+unsigned char *Vect_read_line_to_wkb(const struct Map_info *, 
+                                     struct line_pnts *, 
+                                     struct line_cats *, 
+                                     int, size_t *, int *);
 #endif
 
     /* Raster color tables */

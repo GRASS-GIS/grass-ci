@@ -19,6 +19,7 @@
 #% keyword: temporal
 #% keyword: sampling
 #% keyword: vector
+#% keyword: time
 #%end
 
 #%option G_OPT_V_INPUT
@@ -138,7 +139,7 @@ def main():
                                                       strds_names[0], False, None,
                                                       "equal", False, False)
 
-        for i in xrange(len(mapmatrizes[0])):
+        for i in range(len(mapmatrizes[0])):
             isvalid = True
             mapname_list = []
             for mapmatrix in mapmatrizes:

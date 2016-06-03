@@ -21,6 +21,7 @@ SUBDIRS = \
 	g.extension \
 	g.extension.all \
 	g.manual \
+	g.search.modules \
 	i.colors.enhance \
 	i.image.mosaic \
 	i.in.spotvgt \

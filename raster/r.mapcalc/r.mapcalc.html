@@ -4,7 +4,6 @@ New raster map layers can be created which are arithmetic expressions
 involving existing raster map layers, integer or floating point constants,
 and functions.
 
-
 <h3>Program use</h3>
 
 <em>r.mapcalc</em> expression have the form:
@@ -12,7 +11,7 @@ and functions.
 <p>where <em>result</em> is the name of a raster map layer
 to contain the result of the calculation and
 <b>expression</b> is any legal arithmetic expression involving existing
-raster map layers, integer or floating point constants,
+raster map layers (except <em>result</em> itself), integer or floating point constants,
 and functions known to the calculator.
 Parentheses are allowed in the expression and may be nested to any depth.
 <em>result</em> will be created in the user's current mapset.
@@ -279,13 +278,11 @@ red
 
 The functions currently supported are listed in the table below.
 The type of the result is indicated in the last column.
-<em>F</em>
-means that the functions always results in a floating point value,
-<em>I</em>
-means that the function gives an integer result, and
-<em>*</em>
-indicates that the result is float if any of the arguments to the function
-are floating point values and integer if all arguments are integer.
+<em>F</em> means that the functions always results in a floating point value,
+<em>I</em> means that the function gives an integer result, and
+<em>*</em> indicates that the result is float if any of the arguments to the
+function are floating point values and integer if all arguments are integer.
+
 <p><div class="code"><pre>
 function                description                                     type
 ---------------------------------------------------------------------------
@@ -322,7 +319,7 @@ nmin(x,y[,z...])        smallest value of those listed, excluding NULLs *
 nmode(x,y[,z...])       mode value of those listed, excluding NULLs     *
 not(x)                  1 if x is zero, 0 otherwise
 pow(x,y)                x to the power y                                *
-rand(a,b)               random value x : a &lt;= x &lt; b
+rand(a,b)               random value x : a &lt;= x &lt; b                     *
 round(x)                round x to nearest integer                      I
 round(x,y)              round x to nearest multiple of y
 round(x,y,z)            round x to nearest y*i+z for some integer i
@@ -331,14 +328,17 @@ sqrt(x)                 square root of x                                F
 tan(x)                  tangent of x (x is in degrees)                  F
 xor(x,y)                exclusive-or (XOR) of x and y                   I
 </pre></div>
+
 <div class="code"><pre>
 Internal variables:
- row()                  current row of moving window
- col()                  current col of moving window
- x()                    current x-coordinate of moving window
- y()                    current y-coordinate of moving window
- ewres()                current east-west resolution
- nsres()                current north-south resolution
+ row()                  current row of moving window                    I
+ col()                  current col of moving window                    I
+ nrows()                number of rows in computation region            I
+ ncols()                number of columns in computation region         I
+ x()                    current x-coordinate of moving window           F
+ y()                    current y-coordinate of moving window           F
+ ewres()                current east-west resolution                    F
+ nsres()                current north-south resolution                  F
  null()                 NULL value
 </pre></div>
 Note, that the row() and col() indexing starts with 1.
@@ -625,32 +625,60 @@ such as a pseudo-random number generator given an explicit seed.
 the <b>seed</b> option nor the <b>-s</b> flag are given.
 
 <h2>EXAMPLES</h2>
+
 To compute the average of two raster map layers
 <em>a</em> and <em>b</em>:
 <div class="code"><pre>
 ave = (a + b)/2
 </pre></div>
+
+<p>
 To form a weighted average:
 <div class="code"><pre>
 ave = (5*a + 3*b)/8.0
 </pre></div>
+
+<p>
 To produce a binary representation of the raster map layer
 <em>a</em> so that category 0 remains 0 and all other categories become 1:
 <div class="code"><pre>
-mask = a != 0
+mapmask = a != 0
 </pre></div>
 This could also be accomplished by:
 <div class="code"><pre>
-mask = if(a)
+mapmask = if(a)
 </pre></div>
+
+<p>
 To mask raster map layer <em>b</em> by raster map layer <em>a</em>:
 <div class="code"><pre>
 result = if(a,b)
 </pre></div>
+
+<p>
 To change all values below 5 to NULL:
 <div class="code"><pre>
 newmap = if(map&lt;5, null(), 5)
 </pre></div>
+
+<p>
+To create a map with random values in a defined range (needs either the
+usage of <b>-s</b> flag or the <em>seed</em> parameter). The precision of
+the input values determines the output precision (the resulting
+<a href="rasterintro.html#raster-format">raster map type</a>):
+
+<div class="code"><pre>
+# write result as integer map (CELL)
+random_int   = rand(-100,100)
+
+# write result as double precision floating point map (DCELL)
+random_dcell = rand(-100.0,100.0)
+
+# write result as double precision floating point map (FCELL)
+random_fcell = float(rand(-100.0,100.0))
+</pre></div>
+
+<p>
 The graph() function allows users to specify a x-y conversion using 
 pairs of x,y coordinates.
 In some situations a transformation from one value to another is not
@@ -681,9 +709,26 @@ X (map) values supplied and y (newmap) values returned:
 
 <h2>KNOWN ISSUES</h2>
 
-Continuation lines must end with a <tt>\</tt> and have <em>no</em> trailing
-white space (blanks or tabs).
-If the user does leave white space at the end of
+The <em>result</em> variable on the left hand side of the equation should not
+appear in the <em>expression</em> on the right hand side.
+
+<div class="code"><pre>
+<s>mymap = if( mymap &gt; 0, mymap, 0)</s>
+</pre></div>
+
+<p>Any maps generated by a <em>r.mapcalc</em> command only exist after the entire
+command has completed. All maps are generated concurrently, row-by-row
+(i.e. there is an implicit "for row in rows {...}" around the entire expression).
+Thus the <tt>#</tt>, <tt>@</tt>, and <tt>[ ]</tt> operators cannot be used on a map
+generated within same <em>r.mapcalc</em> command run.
+
+<div class="code"><pre>
+newmap = oldmap * 3.14
+<s>othermap = newmap[-1, 0] / newmap[1, 0]</s>
+</pre></div>
+
+<p>Continuation lines must end with a <tt>\</tt> and have <em>no</em> trailing
+white space (blanks or tabs). If the user does leave white space at the end of
 continuation lines, the error messages produced by <em>r.mapcalc</em> will
 be meaningless and the equation will not work as the user intended.
 This is particularly important for the <tt>eval()</tt> function.
@@ -701,7 +746,7 @@ NULL cells. It is left to the user to utilize the <tt>isnull()</tt> function.
 
 <h2>SEE ALSO</h2>
 
-<p><em>
+<em>
 <a href="g.region.html">g.region</a>,
 <a href="r.bitpattern.html">r.bitpattern</a>,
 <a href="r.blend.html">r.blend</a>,

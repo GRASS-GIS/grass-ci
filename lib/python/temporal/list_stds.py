@@ -10,23 +10,23 @@ Usage:
     tgis.register_maps_in_space_time_dataset(type, name, maps)
 
 
-(C) 2012-2013 by the GRASS Development Team
+(C) 2012-2016 by the GRASS Development Team
 This program is free software under the GNU General Public
-License (>=v2). Read the file COPYING that comes with GRASS
+License (>=v2). Read the file COPYING that comes with GRASS GIS
 for details.
 
 :authors: Soeren Gebbert
 """
-
-from space_time_datasets import *
-from factory import *
-from open_stds import *
+from __future__ import print_function
+from .space_time_datasets import *
+from .factory import *
+from .open_stds import *
 
 ###############################################################################
 
 
 def get_dataset_list(type, temporal_type, columns=None, where=None,
-                     order=None):
+                     order=None, dbif=None):
     """ Return a list of time stamped maps or space time datasets of a specific
         temporal type that are registred in the temporal database
 
@@ -41,6 +41,7 @@ def get_dataset_list(type, temporal_type, columns=None, where=None,
         :param where: A where statement for selected listing without "WHERE"
         :param order: A comma separated list of columns to order the
                       datasets by category
+        :param dbif: The database interface to be used
 
         :return: A dictionary with the rows of the SQL query for each
                  available mapset
@@ -57,13 +58,13 @@ def get_dataset_list(type, temporal_type, columns=None, where=None,
             >>> rows =  stds_list[mapset]
             >>> for row in rows:
             ...     if row["name"] == name:
-            ...         print True
+            ...         print(True)
             True
             >>> stds_list = tgis.get_dataset_list("strds", "absolute", columns="name,mapset", where="mapset = '%s'"%(mapset))
             >>> rows =  stds_list[mapset]
             >>> for row in rows:
             ...     if row["name"] == name and row["mapset"] == mapset:
-            ...         print True
+            ...         print(True)
             True
             >>> check = sp.delete()
 
@@ -71,8 +72,7 @@ def get_dataset_list(type, temporal_type, columns=None, where=None,
     id = None
     sp = dataset_factory(type, id)
 
-    dbif = SQLDatabaseInterfaceConnection()
-    dbif.connect()
+    dbif, connected = init_dbif(dbif)
 
     mapsets = get_available_temporal_mapsets()
 
@@ -105,14 +105,18 @@ def get_dataset_list(type, temporal_type, columns=None, where=None,
         if rows:
             result[mapset] = rows
 
+    if connected:
+        dbif.close()
+
     return result
 
 ###############################################################################
 
 
 def list_maps_of_stds(type, input, columns, order, where, separator,
-                      method, no_header=False, gran=None):
-    """ List the maps of a space time dataset using diffetent methods
+                      method, no_header=False, gran=None, dbif=None,
+                      outpath=None):
+    """ List the maps of a space time dataset using different methods
 
         :param type: The type of the maps raster, raster3d or vector
         :param input: Name of a space time raster dataset
@@ -124,6 +128,7 @@ def list_maps_of_stds(type, input, columns, order, where, separator,
         :param separator: The field separator character between the columns
         :param method: String identifier to select a method out of cols,
                        comma,delta or deltagaps
+        :param dbif: The database interface to be used
 
             - "cols" Print preselected columns specified by columns
             - "comma" Print the map ids ("name@mapset") as comma separated string
@@ -131,23 +136,27 @@ def list_maps_of_stds(type, input, columns, order, where, separator,
                end time, relative length of intervals and the relative
                distance to the begin
             - "deltagaps" Same as "delta" with additional listing of gaps.
-              Gaps can be simply identified as the id is "None"
+               Gaps can be easily identified as the id is "None"
             - "gran" List map using the granularity of the space time dataset,
-              columns are identical to deltagaps
+               columns are identical to deltagaps
 
         :param no_header: Supress the printing of column names
         :param gran: The user defined granule to be used if method=gran is
                      set, in case gran=None the granule of the space time
                      dataset is used
+        :param outpath: The path to file where to save output
     """
 
-    dbif, connected = init_dbif(None)
+    dbif, connected = init_dbif(dbif)
     msgr = get_tgis_message_interface()
 
     sp = open_old_stds(input, type, dbif)
 
     if separator is None or separator == "":
         separator = "\t"
+
+    if outpath:
+        outfile = open(outpath, 'w')
 
     # This method expects a list of objects for gap detection
     if method == "delta" or method == "deltagaps" or method == "gran":
@@ -180,7 +189,10 @@ def list_maps_of_stds(type, input, columns, order, where, separator,
             string += "%s%s" % ("end_time", separator)
             string += "%s%s" % ("interval_length", separator)
             string += "%s" % ("distance_from_begin")
-            print string
+            if outpath:
+                outfile.write('{st}\n'.format(st=string))
+            else:
+                print(string)
 
         if maps and len(maps) > 0:
 
@@ -225,7 +237,10 @@ def list_maps_of_stds(type, input, columns, order, where, separator,
                 string += "%s%s" % (end, separator)
                 string += "%s%s" % (delta, separator)
                 string += "%s" % (delta_first)
-                print string
+                if outpath:
+                    outfile.write('{st}\n'.format(st=string))
+                else:
+                    print(string)
 
     else:
         # In comma separated mode only map ids are needed
@@ -244,7 +259,10 @@ def list_maps_of_stds(type, input, columns, order, where, separator,
                     else:
                         string += ",%s" % row["id"]
                     count += 1
-                print string
+                if outpath:
+                    outfile.write('{st}\n'.format(st=string))
+                else:
+                    print(string)
 
             elif method == "cols":
                 # Print the column names if requested
@@ -260,7 +278,10 @@ def list_maps_of_stds(type, input, columns, order, where, separator,
                         else:
                             output += str(key)
                         count += 1
-                    print output
+                    if outpath:
+                        outfile.write('{st}\n'.format(st=output))
+                    else:
+                        print(output)
 
                 for row in rows:
                     output = ""
@@ -271,8 +292,12 @@ def list_maps_of_stds(type, input, columns, order, where, separator,
                         else:
                             output += str(col)
                         count += 1
-
-                    print output
+                    if outpath:
+                        outfile.write('{st}\n'.format(st=output))
+                    else:
+                        print(output)
+    if outpath:
+        outfile.close()
     if connected:
         dbif.close()
 

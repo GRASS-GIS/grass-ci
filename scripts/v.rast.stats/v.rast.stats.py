@@ -72,21 +72,14 @@ def cleanup():
     if rastertmp:
         grass.run_command('g.remove', flags='f', type='raster',
                           name=rastertmp, quiet=True)
-    grass.run_command('g.remove', flags='f', type='raster',
-                      name='MASK', quiet=True, stderr=nuldev)
-    if mask_found:
-        grass.message(_("Restoring previous MASK..."))
-        grass.run_command('g.rename', raster=(tmpname + "_origmask", 'MASK'),
-                          quiet=True)
 #    for f in [tmp, tmpname, sqltmp]:
 #        grass.try_remove(f)
 
 
 def main():
-    global tmp, sqltmp, tmpname, nuldev, vector, mask_found, rastertmp
-    mask_found = False
+    global tmp, sqltmp, tmpname, nuldev, vector, rastertmp
     rastertmp = False
-    #### setup temporary files
+    # setup temporary files
     tmp = grass.tempfile()
     sqltmp = tmp + ".sql"
     # we need a random name
@@ -123,13 +116,6 @@ def main():
     if not grass.find_file(raster, 'cell')['file']:
         grass.fatal(_("Raster map <%s> not found") % raster)
 
-    # check presence of raster MASK, put it aside
-    mask_found = bool(grass.find_file('MASK', 'cell')['file'])
-    if mask_found:
-        grass.message(_("Raster MASK found, temporarily disabled"))
-        grass.run_command('g.rename', raster=('MASK', tmpname + "_origmask"),
-                          quiet=True)
-
     # save current settings:
     grass.use_temp_region()
 
@@ -137,9 +123,9 @@ def main():
     # keep boundary settings
     grass.run_command('g.region', align=raster)
 
-    # prepare raster MASK
+    grass.message(_("Preprocessing input data..."))
     try:
-        grass.run_command('v.to.rast', input=vector, output=rastertmp,
+        grass.run_command('v.to.rast', input=vector, layer=layer, output=rastertmp,
                           use='cat', quiet=True)
     except CalledModuleError:
         grass.fatal(_("An error occurred while converting vector to raster"))
@@ -160,13 +146,15 @@ def main():
     try:
         fi = grass.vector_db(map=vector)[int(layer)]
     except KeyError:
-        grass.fatal(_('There is no table connected to this map. Run v.db.connect or v.db.addtable first.'))
+        grass.fatal(
+            _('There is no table connected to this map. Run v.db.connect or v.db.addtable first.'))
     # we need this for non-DBF driver:
     dbfdriver = fi['driver'] == 'dbf'
 
     # Find out which table is linked to the vector map on the given layer
     if not fi['table']:
-        grass.fatal(_('There is no table connected to this map. Run v.db.connect or v.db.addtable first.'))
+        grass.fatal(
+            _('There is no table connected to this map. Run v.db.connect or v.db.addtable first.'))
 
     # replaced by user choiche
     #basecols = ['n', 'min', 'max', 'range', 'mean', 'stddev', 'variance', 'cf_var', 'sum']
@@ -220,7 +208,7 @@ def main():
         if currcolumn in grass.vector_columns(vector, layer).keys():
             if not flags['c']:
                 grass.fatal((_("Cannot create column <%s> (already present). ") % currcolumn) +
-                             _("Use -c flag to update values in this column."))
+                            _("Use -c flag to update values in this column."))
         else:
             if i == "n":
                 coltype = "INTEGER"
@@ -237,7 +225,7 @@ def main():
             grass.fatal(_("Adding columns failed. Exiting."))
 
     # calculate statistics:
-    grass.message(_("Processing data (%d categories)...") % number)
+    grass.message(_("Processing input data (%d categories)...") % number)
 
     # get rid of any earlier attempts
     grass.try_remove(sqltmp)
@@ -245,13 +233,12 @@ def main():
     f = file(sqltmp, 'w')
 
     # do the stats
-    p = grass.pipe_command('r.univar', flags='t' + 'g' + extstat, map=raster,
+    p = grass.pipe_command('r.univar', flags='t' + extstat, map=raster,
                            zones=rastertmp, percentile=percentile, sep=';')
 
     first_line = 1
 
-    if not dbfdriver:
-        f.write("BEGIN TRANSACTION\n")
+    f.write("{}\n".format(grass.db_begin_transaction(fi['driver'])))
     for line in p.stdout:
         if first_line:
             first_line = 0
@@ -262,7 +249,7 @@ def main():
         f.write("UPDATE %s SET" % fi['table'])
         first_var = 1
         for colname in colnames:
-            variable = colname.replace("%s_" % colprefix, '')
+            variable = colname.replace("%s_" % colprefix, '', 1)
             if dbfdriver:
                 variable = variables_dbf[variable]
             i = variables[variable]
@@ -278,8 +265,7 @@ def main():
             f.write(" %s=%s" % (colname, value))
 
         f.write(" WHERE %s=%s;\n" % (fi['key'], vars[0]))
-    if not dbfdriver:
-        f.write("COMMIT\n")
+    f.write("{}\n".format(grass.db_commit_transaction(fi['driver'])))
     p.wait()
     f.close()
 
@@ -293,11 +279,10 @@ def main():
                          " of vector map <{vector}>."
                          ).format(raster=raster, vector=vector)))
     except CalledModuleError:
-        grass.warning(_("Failed to upload statistics to attribute table of vector map <%s>.") % vector)
+        grass.warning(
+            _("Failed to upload statistics to attribute table of vector map <%s>.") %
+            vector)
         exitcode = 1
-    finally:
-         grass.run_command('g.remove', flags='f', type='raster',
-                           name='MASK', quiet=True, stderr=nuldev)
 
     sys.exit(exitcode)
 

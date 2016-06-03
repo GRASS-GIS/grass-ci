@@ -7,7 +7,7 @@ in 2D and 3D, calling GRASS GIS modules, and interacting with data.
 
 
 <h3>Overview</h3>
-The GUI is composed of <em>two</em> main components:
+The GUI is composed of <em>three</em> main components:
 
 <ul>
   <li>The <b>Layer Manager</b> includes map layer management, integrated
@@ -18,6 +18,7 @@ The GUI is composed of <em>two</em> main components:
   set of map layers in the layer manager. The user may start multiple map 
   displays during a session. The map layers for each display are grouped
   under different tabs in the Layer Manager.</li>
+  <li><a href="wxGUI.modules.html">Module dialogs</a> enable running GRASS modules.</li>
 </ul>
 
 <h3>Layer Manager</h3>
@@ -349,20 +350,14 @@ the computational region extents.
 
 <dl>
 
-  <dt><img src="icons/show.png" alt="icon">&nbsp;
-    <em>Display map</em></dt>
-  <dd>Displays all active layers from layer tree and re-renders for display
-    any layers that have changed since the last time the display was updated, 
-    including layers added or removed.</dd>
-  
   <dt><img src="icons/layer-redraw.png" alt="icon">&nbsp;
-    <em>Re-render map</em></dt>
-  <dd>Re-renders all active layers regardless of whether they have changed
-    or not.</dd>
+    <em>Re-render display</em></dt>
+  <dd>Re-renders all active map layers regardless of whether they have changed
+    or not, see <em><a href="d.redraw.html">d.redraw</a></em>.</dd>
   
   <dt><img src="icons/erase.png" alt="icon">&nbsp;
     <em>Erase display</em></dt>
-  <dd>Erases the currently selected map display to a white background.
+  <dd>Erases the currently selected map display to a white background,
     see <em><a href="d.erase.html">d.erase</a></em>.</dd>
   
   <dt><img src="icons/pointer.png" alt="icon">&nbsp;
@@ -575,7 +570,7 @@ the computational region extents.
 
 <dl>
   <dt>Ctrl+Tab</dt>
-  <dd>Switch 'Map layers' and 'Command output' tab</dd>
+  <dd>Switch 'Layers' and 'Console' tab</dd>
   <dt>Ctrl+Q</dt>
   <dd>Quit</dd>
 </dl>
@@ -590,7 +585,7 @@ the computational region extents.
   <dd>Close workspace</dd>
 </dl>
 
-<b>Map Layers</b>
+<b>Layers</b>
 <dl>
   <dt>Ctrl+Shift+L</dt>
   <dd>Add multiple raster or vector map layers to current map display</dd>
@@ -602,18 +597,24 @@ the computational region extents.
   <dd>Close current map display</dd>
 </dl>
 
-<b>Command line prompt</b>
+<b>Console</b>
 <dl>
   <dt>Tab</dt>
   <dd>Show command tooltips</dd>
   <dt>Esc</dt>
   <dd>Hide command tooltips</dd>
   <dt>Ctrl+Space</dt>
-  <dd>Map entries without arguments (as in <tt>r.info [mapname]</tt>)</dd>
+  <dd>Show auto-complete suggestions</dd>
   <dt>Up/Down</dt>
   <dd>List command history</dd>
   <dt>Enter</dt>
   <dd>Run command</dd>
+  <dt>Ctrl++</dt>
+  <dd>Increase font size (numerical keyboard plus key)</dd>
+  <dt>Ctrl+-</dt>
+  <dd>Decrease font size (numerical keyboard minus key)</dd>
+  <dt>Ctrl+mouse wheel</dt>
+  <dd>Increase or decrease font size</dd>
 </dl>
 
 <h4>Map Display</h4>
@@ -688,6 +689,7 @@ using <a href="http://www.wxpython.org">wxPython</a> library.
 
 <em>
   <a href="wxGUI.components.html">wxGUI components</a><br>
+  <a href="wxGUI.modules.html">wxGUI module dialogs</a>
   <a href="wxGUI.toolboxes.html">wxGUI toolboxes (menu customization)</a>
 </em>
 
@@ -712,7 +714,7 @@ Stepan Turek, OSGeoREL, Czech Technical University in Prague, Czech Republic<br>
 Tereza Fiedlerova, OSGeoREL, Czech Technical University in Prague, Czech Republic<br>
 Matej Krejci, OSGeoREL, Czech Technical University in Prague, Czech Republic<br><br>
 
-Icons created by <a href="http://robert.szczepanek.pl">Robert Szczepanek</a>, Poland (<a href="https://svn.osgeo.org/osgeo/graphics/trunk/toolbar-icons/24x24/">SVN</a>)
+Icons created by <a href="http://robert.szczepanek.pl">Robert Szczepanek</a>, Poland (<a href="https://github.com/Cracert/GIS-icons">Git repository</a>)
 
 <p>
 <i>$Date$</i>

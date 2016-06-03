@@ -17,8 +17,10 @@ for details.
 
 :authors: Soeren Gebbert
 """
-from abstract_dataset import *
-from datetime_math import *
+from __future__ import print_function
+
+from .abstract_dataset import *
+from .datetime_math import *
 import grass.lib.vector as vector
 import grass.lib.rtree as rtree
 import grass.lib.gis as gis
@@ -94,8 +96,8 @@ class SpatioTemporalTopologyBuilder(object):
             >>> for map in mapsA:
             ...     if map.get_equal():
             ...         relations = map.get_equal()
-            ...         print "Map %s has equal relation to map %s"%(map.get_name(),
-            ...               relations[0].get_name())
+            ...         print("Map %s has equal relation to map %s"%(map.get_name(),
+            ...               relations[0].get_name()))
             Map a0 has equal relation to map b0
             Map a1 has equal relation to map b1
             Map a2 has equal relation to map b2
@@ -104,8 +106,8 @@ class SpatioTemporalTopologyBuilder(object):
             >>> for map in mapsB:
             ...     if map.get_equal():
             ...         relations = map.get_equal()
-            ...         print "Map %s has equal relation to map %s"%(map.get_name(),
-            ...               relations[0].get_name())
+            ...         print("Map %s has equal relation to map %s"%(map.get_name(),
+            ...               relations[0].get_name()))
             Map b0 has equal relation to map a0
             Map b1 has equal relation to map a1
             Map b2 has equal relation to map a2
@@ -132,7 +134,7 @@ class SpatioTemporalTopologyBuilder(object):
             ...     m = map.get_temporal_relations()
             ...     for key in m.keys():
             ...         if key not in ["NEXT", "PREV"]:
-            ...             print(key, m[key][0].get_temporal_extent_as_tuple())
+            ...             print((key, m[key][0].get_temporal_extent_as_tuple()))
             (0, 1)
             ('PRECEDES', (1, 2))
             (1, 2)
@@ -171,7 +173,7 @@ class SpatioTemporalTopologyBuilder(object):
             ...     m = map.get_temporal_relations()
             ...     for key in m.keys():
             ...         if key not in ["NEXT", "PREV"]:
-            ...             print(key, m[key][0].get_temporal_extent_as_tuple())
+            ...             print((key, m[key][0].get_temporal_extent_as_tuple()))
             (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2001, 1, 1, 0, 0))
             ('PRECEDES', (datetime.datetime(2001, 1, 1, 0, 0), datetime.datetime(2002, 1, 1, 0, 0)))
             (datetime.datetime(2001, 1, 1, 0, 0), datetime.datetime(2002, 1, 1, 0, 0))
@@ -210,7 +212,7 @@ class SpatioTemporalTopologyBuilder(object):
             ...     m = map.get_temporal_relations()
             ...     for key in m.keys():
             ...         if key not in ["NEXT", "PREV"]:
-            ...             print(key, m[key][0].get_temporal_extent_as_tuple())
+            ...             print((key, m[key][0].get_temporal_extent_as_tuple()))
             (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2001, 1, 1, 0, 0))
             ('DURING', (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2003, 1, 1, 0, 0)))
             ('STARTS', (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2003, 1, 1, 0, 0)))
@@ -254,7 +256,7 @@ class SpatioTemporalTopologyBuilder(object):
             ...     m = map.get_temporal_relations()
             ...     for key in m.keys():
             ...         if key not in ["NEXT", "PREV"]:
-            ...             print(key, m[key][0].get_temporal_extent_as_tuple())
+            ...             print((key, m[key][0].get_temporal_extent_as_tuple()))
             (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2002, 1, 1, 0, 0))
             ('OVERLAPS', (datetime.datetime(2001, 1, 1, 0, 0), datetime.datetime(2004, 1, 1, 0, 0)))
             ('DURING', (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2003, 1, 1, 0, 0)))
@@ -303,7 +305,7 @@ class SpatioTemporalTopologyBuilder(object):
             ...     m = map.get_temporal_relations()
             ...     for key in m.keys():
             ...         if key not in ["NEXT", "PREV"]:
-            ...             print(key, m[key][0].get_temporal_extent_as_tuple())
+            ...             print((key, m[key][0].get_temporal_extent_as_tuple()))
             (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2000, 1, 1, 0, 0, 2))
             ('OVERLAPS', (datetime.datetime(2000, 1, 1, 0, 0, 1), datetime.datetime(2000, 1, 1, 0, 0, 3)))
             ('PRECEDES', (datetime.datetime(2000, 1, 1, 0, 0, 2), datetime.datetime(2000, 1, 1, 0, 0, 4)))
@@ -338,7 +340,7 @@ class SpatioTemporalTopologyBuilder(object):
             ...     m = map.get_temporal_relations()
             ...     for key in m.keys():
             ...         if key not in ["NEXT", "PREV"]:
-            ...             print(key, m[key][0].get_temporal_extent_as_tuple())
+            ...             print((key, m[key][0].get_temporal_extent_as_tuple()))
             (datetime.datetime(2000, 1, 1, 0, 0), datetime.datetime(2000, 1, 1, 0, 0, 2))
             ('OVERLAPS', (datetime.datetime(2000, 1, 1, 0, 0, 1), datetime.datetime(2000, 1, 1, 0, 0, 3)))
             ('PRECEDES', (datetime.datetime(2000, 1, 1, 0, 0, 2), datetime.datetime(2000, 1, 1, 0, 0, 4)))
@@ -431,7 +433,7 @@ class SpatioTemporalTopologyBuilder(object):
         sorted_maps = sorted(
             maps, key=AbstractDatasetComparisonKeyStartTime)
 
-        for i in xrange(len(sorted_maps) - 1):
+        for i in range(len(sorted_maps) - 1):
             sorted_maps[i].set_next(sorted_maps[i + 1])
 
         for map_ in sorted_maps:
@@ -491,7 +493,7 @@ class SpatioTemporalTopologyBuilder(object):
 
         tree = rtree.RTreeCreateTree(-1, 0, dim)
 
-        for i in xrange(len(maps)):
+        for i in range(len(maps)):
 
             rect = self._map_to_rect(tree, maps[i], spatial)
             rtree.RTreeInsertRect(rect, i + 1, tree)
@@ -542,13 +544,13 @@ class SpatioTemporalTopologyBuilder(object):
 
         list_ = gis.G_new_ilist()
 
-        for j in xrange(len(mapsB)):
+        for j in range(len(mapsB)):
 
             rect = self._map_to_rect(tree, mapsB[j], spatial)
             vector.RTreeSearch2(tree, rect, list_)
             rtree.RTreeFreeRect(rect)
 
-            for k in xrange(list_.contents.n_values):
+            for k in range(list_.contents.n_values):
                 i = list_.contents.value[k] - 1
 
                 # Get the temporal relationship

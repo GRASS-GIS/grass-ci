@@ -231,7 +231,7 @@ The import works for 2D maps as well (no elev column and no '-z' flag).
 Generate a 3D points vector map 'points3d.dat' with attributes as ASCII file:
 <div class="code"><pre>
 593493.1|4914730.2|123.1|studna|well
-591950.2|4923000.5|222.3|kadibudka|closet
+591950.2|4923000.5|222.3|kadibudka|outhouse
 589860.5|4922000.0|232.3|hruska|pear
 590400.5|4922820.8|143.2|mysi dira|mouse hole
 593549.3|4925500.7|442.6|mineralni pramen|mineral spring
@@ -292,8 +292,9 @@ cat $MAPSET/group/$GROUP/POINTS | v.in.ascii in=- out=$GROUP_gcp separator=space
 <a href="v.centroids.html">v.centroids</a>,
 <a href="v.clean.html">v.clean</a>,
 <a href="v.db.connect.html">v.db.connect</a>,
+<a href="v.import.html">v.import</a>,
 <a href="v.info.html">v.info</a>,
-<a href="v.out.ascii.html">v.out.ascii</a>,
+<a href="v.out.ascii.html">v.out.ascii</a>
 </em>
 
 <h2>AUTHORS</h2>

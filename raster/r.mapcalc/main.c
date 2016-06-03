@@ -14,7 +14,6 @@
  *****************************************************************************/
 
 #include <unistd.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,11 +24,7 @@
 
 /****************************************************************************/
 
-int overflow_occurred;
 int overwrite_flag;
-
-volatile int floating_point_exception;
-volatile int floating_point_exception_occurred;
 
 long seed_value;
 long seeded;
@@ -37,47 +32,6 @@ long seeded;
 /****************************************************************************/
 
 static expr_list *result;
-
-/****************************************************************************/
-
-static RETSIGTYPE handle_fpe(int n)
-{
-    floating_point_exception = 1;
-    floating_point_exception_occurred = 1;
-}
-
-static void pre_exec(void)
-{
-#ifndef __MINGW32__
-#ifdef SIGFPE
-    struct sigaction act;
-
-    act.sa_handler = &handle_fpe;
-    act.sa_flags = 0;
-    sigemptyset(&act.sa_mask);
-
-    sigaction(SIGFPE, &act, NULL);
-#endif
-#endif
-
-    floating_point_exception_occurred = 0;
-    overflow_occurred = 0;
-}
-
-static void post_exec(void)
-{
-#ifndef __MINGW32__
-#ifdef SIGFPE
-    struct sigaction act;
-
-    act.sa_handler = SIG_DFL;
-    act.sa_flags = 0;
-    sigemptyset(&act.sa_mask);
-
-    sigaction(SIGFPE, &act, NULL);
-#endif
-#endif
-}
 
 /****************************************************************************/
 
@@ -106,7 +60,7 @@ int main(int argc, char **argv)
 {
     struct GModule *module;
     struct Option *expr, *file, *seed;
-    struct Flag *random;
+    struct Flag *random, *describe;
     int all_ok;
 
     G_gisinit(argv[0]);
@@ -139,6 +93,10 @@ int main(int argc, char **argv)
     random = G_define_flag();
     random->key = 's';
     random->description = _("Generate random seed (result is non-deterministic)");
+
+    describe = G_define_flag();
+    describe->key = 'l';
+    describe->description = _("List input and output maps");
 
     if (argc == 1)
     {
@@ -186,6 +144,11 @@ int main(int argc, char **argv)
 	G_debug(3, "Generated random seed (-s): %ld", seed_value);
     }
 
+    if (describe->answer) {
+        describe_maps(stdout, result);
+        return EXIT_SUCCESS;
+    }
+
     pre_exec();
     execute(result);
     post_exec();
@@ -194,11 +157,6 @@ int main(int argc, char **argv)
 
     if (floating_point_exception_occurred) {
 	G_warning(_("Floating point error(s) occurred in the calculation"));
-	all_ok = 0;
-    }
-
-    if (overflow_occurred) {
-	G_warning(_("Overflow occurred in the calculation"));
 	all_ok = 0;
     }
 

@@ -10,7 +10,7 @@
  *               
  * PURPOSE:      Network maintenance
  *               
- * COPYRIGHT:    (C) 2001-2009,2014 by the GRASS Development Team
+ * COPYRIGHT:    (C) 2001-2009,2014,2016 by the GRASS Development Team
  *
  *               This program is free software under the 
  *               GNU General Public License (>=v2). 
@@ -180,7 +180,7 @@ int main(int argc, char **argv)
     if (file_arcs)
 	fclose(file_arcs);
 
-    G_done_msg(message);
+    G_done_msg("%s", message);
 
     return (EXIT_SUCCESS);
 }

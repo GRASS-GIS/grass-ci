@@ -6,7 +6,7 @@
 # PURPOSE:   Temporal Plot Tool is a wxGUI component (based on matplotlib)
 #            the user to see in a plot the values of one or more temporal
 #            datasets for a queried point defined by a coordinate pair.
-# COPYRIGHT: (C) 2014 by Luca Delucchi, and the GRASS Development Team
+# COPYRIGHT: (C) 2014-2015 by Luca Delucchi, and the GRASS Development Team
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 ############################################################################
 
 #%module
-#% description: Allows the user to see in a plot the values of one or more temporal raser datasets for a queried point defined by a coordinate pair. Also allows to plot data of vector dataset for a defined categories and attribut.
+#% description: Plots the values of temporal datasets.
 #% keywords: general
 #% keywords: GUI
 #% keywords: temporal
@@ -41,7 +41,7 @@
 #% required: no
 #%end
 
-#TODO use option G_OPT_V_CATS
+# TODO use option G_OPT_V_CATS
 #%option
 #% key: cats
 #% label: Categories of vectores features
@@ -72,14 +72,18 @@
 #%end
 
 import grass.script as gscript
-from core.giface import StandaloneGrassInterface
 
 
 def main():
     options, flags = gscript.parser()
 
     import wx
+
+    from grass.script.setup import set_gui_path
+    set_gui_path()
+
     from core.utils import _
+    from core.giface import StandaloneGrassInterface
     try:
         from tplot.frame import TplotFrame
     except ImportError as e:
@@ -103,7 +107,7 @@ def main():
         else:
             attr = options['attr']
         if coords and cats:
-            gscript.fatal(_("With stvds it is not possible use 'coordinates' "
+            gscript.fatal(_("With stvds it is not possible to use 'coordinates' "
                             "and 'cats' options together"))
         elif not coords and not cats:
             gscript.warning(_("With stvds you have to use 'coordinates' or "
@@ -117,12 +121,7 @@ def main():
             sizes = options['size'].strip().split(',')
             sizes = [int(s) for s in sizes]
             frame.canvas.SetSize(sizes)
-        if output.split('.')[-1].lower() == 'png':
-            frame.canvas.print_png(output)
-        if output.split('.')[-1].lower() in ['jpg', 'jpeg']:
-            frame.canvas.print_jpg(output)
-        if output.split('.')[-1].lower() in ['tif', 'tiff']:
-            frame.canvas.print_tif(output)
+        frame.canvas.figure.savefig(output)
     else:
         frame.Show()
         app.MainLoop()

@@ -8,7 +8,7 @@
  *
  * PURPOSE:      Link raster map into GRASS utilizing the GDAL library.
  *
- * COPYRIGHT:    (C) 2008, 2010-2011 by Glynn Clements and the GRASS Development Team
+ * COPYRIGHT:    (C) 2008-2015 by Glynn Clements and the GRASS Development Team
  *
  *               This program is free software under the GNU General Public
  *               License (>=v2). Read the file COPYING that comes with GRASS
@@ -20,6 +20,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <string.h>
+
 #include <grass/gis.h>
 #include <grass/raster.h>
 #include <grass/imagery.h>
@@ -27,6 +28,7 @@
 
 #include <gdal.h>
 #include <ogr_srs_api.h>
+#include <cpl_conv.h>
 
 #include "proto.h"
 
@@ -42,7 +44,7 @@ int main(int argc, char *argv[])
 	struct Option *input, *source, *output, *band, *title;
     } parm;
     struct {
-	struct Flag *o, *f, *e, *h, *v;
+	struct Flag *o, *f, *e, *h, *v, *t;
     } flag;
     int min_band, max_band, band;
     struct band_info info;
@@ -114,6 +116,14 @@ int main(int argc, char *argv[])
     flag.v->key = 'v';
     flag.v->description = _("Flip vertically");
 
+    flag.t = G_define_flag();
+    flag.t->key = 't';
+    flag.t->label =
+        _("List available bands including band type in dataset and exit");
+    flag.t->description = _("Format: band number,type,projection check");
+    flag.t->guisection = _("Print");
+    flag.t->suppress_required = YES;
+
     if (G_parser(argc, argv))
 	exit(EXIT_FAILURE);
 
@@ -150,11 +160,14 @@ int main(int argc, char *argv[])
 		      parm.input->key, parm.source->key);
     
     if (input && !G_is_absolute_path(input)) {
-	char path[GPATH_MAX];
-	getcwd(path, sizeof(path));
-	strcat(path, "/");
-	strcat(path, input);
+	char path[GPATH_MAX], *cwd;
+	cwd = CPLGetCurrentDir();
+	if (!cwd)
+	    G_fatal_error(_("Unable to get current working directory"));
+	
+	G_snprintf(path, GPATH_MAX, "%s%c%s", cwd, HOST_DIRSEP, input);
 	input = G_store(path);
+	CPLFree(cwd);
     }
 
     if (!input)
@@ -165,6 +178,13 @@ int main(int argc, char *argv[])
 	return 1;
 
     setup_window(&cellhd, hDS, &flip);
+
+    if (flag.t->answer) {
+        list_bands(&cellhd, hDS);
+        /* close the GDALDataset to avoid segfault in libgdal */
+        GDALClose(hDS);
+        exit(EXIT_SUCCESS);
+    }
 
     check_projection(&cellhd, hDS, flag.o->answer);
 

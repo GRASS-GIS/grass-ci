@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     /* allocate array for values */
     /* (+ 1 is for cat -1 (no category) reported at the end ) */
     findex = Vect_cidx_get_field_index(&Map, options.field);
-    if (Vect_cidx_get_field_index(&Map, options.field) > -1) {
+    if (findex > -1) {
 	n = Vect_cidx_get_num_unique_cats_by_index(&Map, findex);
     }
     else {
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
     Values[i].cat = -1;		/* features without category */
     Values[i].used = 0;
     Values[i].count1 = 0;
-    Values[i].count1 = 0;
+    Values[i].count2 = 0;
     Values[i].i1 = -1;
     Values[i].i2 = -1;
     Values[i].d1 = 0.0;
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 	    Values[i].cat = cat;
 	    Values[i].used = 0;
 	    Values[i].count1 = 0;
-	    Values[i].count1 = 0;
+	    Values[i].count2 = 0;
 	    Values[i].i1 = -1;
 	    Values[i].i2 = -1;
 	    Values[i].d1 = 0.0;

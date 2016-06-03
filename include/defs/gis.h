@@ -60,7 +60,11 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+
+#ifndef CTYPESGEN
 #include <setjmp.h>
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -164,6 +168,58 @@ int G_num_standard_colors(void);
 int G_insert_commas(char *);
 void G_remove_commas(char *);
 
+/* compress.c */
+int G_compressor_number(char *);
+char *G_compressor_name(int);
+int G_check_compressor(int);
+int G_write_compressed(int, unsigned char *, int, int);
+int G_write_unompressed(int, unsigned char *, int);
+int G_read_compressed(int, int, unsigned char *, int, int);
+int G_compress(unsigned char *, int, unsigned char *, int, int);
+int G_expand(unsigned char *, int, unsigned char *, int, int);
+
+/* compress.c : no compression */
+int
+G_no_compress(unsigned char *src, int src_sz, unsigned char *dst,
+		int dst_sz);
+int
+G_no_expand(unsigned char *src, int src_sz, unsigned char *dst,
+	      int dst_sz);
+
+/* cmprrle.c : Run Length Encoding (RLE) */
+int
+G_rle_compress(unsigned char *src, int src_sz, unsigned char *dst,
+		int dst_sz);
+int
+G_rle_expand(unsigned char *src, int src_sz, unsigned char *dst,
+	      int dst_sz);
+
+/* cmprzlib.c : ZLIB's DEFLATE */
+int
+G_zlib_compress(unsigned char *src, int src_sz, unsigned char *dst,
+		int dst_sz);
+int
+G_zlib_expand(unsigned char *src, int src_sz, unsigned char *dst,
+	      int dst_sz);
+
+/* cmprlz4.c : LZ4, extremely fast */
+int
+G_lz4_compress(unsigned char *src, int src_sz, unsigned char *dst,
+		int dst_sz);
+int
+G_lz4_expand(unsigned char *src, int src_sz, unsigned char *dst,
+	      int dst_sz);
+
+/* cmprbzip.c : BZIP2, high compression, faster than ZLIB's DEFLATE with level 9 */
+int
+G_bz2_compress(unsigned char *src, int src_sz, unsigned char *dst,
+		int dst_sz);
+int
+G_bz2_expand(unsigned char *src, int src_sz, unsigned char *dst,
+	      int dst_sz);
+
+/* add more compression methods here */
+
 /* copy_dir.c */
 int G_recursive_copy(const char *, const char *);
 
@@ -227,7 +283,10 @@ void G__read_mapset_env(void);
 void G__read_gisrc_env(void);
 
 /* error.c */
+#ifndef CTYPESGEN
 jmp_buf *G_fatal_longjmp(int);
+#endif
+
 int G_info_format(void);
 void G_message(const char *, ...) __attribute__ ((format(printf, 1, 2)));
 void G_verbose_message(const char *, ...)
@@ -269,13 +328,6 @@ const char *G_find_raster3d(const char *, const char *);
 /* find_vect.c */
 const char *G_find_vector(char *, const char *);
 const char *G_find_vector2(const char *, const char *);
-
-/* flate.c */
-int G_zlib_compress(const unsigned char *, int, unsigned char *, int);
-int G_zlib_expand(const unsigned char *, int, unsigned char *, int);
-int G_zlib_write(int, const unsigned char *, int);
-int G_zlib_read(int, int, unsigned char *, int);
-int G_zlib_write_noCompress(int, const unsigned char *, int);
 
 /* geodesic.c */
 int G_begin_geodesic_equation(double, double, double, double);
@@ -562,6 +614,7 @@ int G_pole_in_polygon(const double *, const double *, int);
 
 /* progrm_nme.c */
 const char *G_program_name(void);
+const char *G_original_program_name(void);
 void G_set_program_name(const char *);
 
 /* proj1.c */

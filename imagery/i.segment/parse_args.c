@@ -37,7 +37,7 @@ int parse_args(int argc, char *argv[], struct globals *globals)
     method->type = TYPE_STRING;
     method->required = NO;
     method->answer = "region_growing";
-    method->options = "region_growing";
+    method->options = "region_growing,mean_shift,watershed";
     method->description = _("Segmentation method");
     method->guisection = _("Settings");
 
@@ -152,13 +152,23 @@ int parse_args(int argc, char *argv[], struct globals *globals)
     if (globals->alpha <= 0 || globals->alpha >= 1)
 	G_fatal_error(_("Threshold should be > 0 and < 1"));
 
-    /* segmentation methods:  1 = region growing */
-    if (strcmp(method->answer, "region_growing") == 0)
-	globals->method = 1;
+    /* segmentation methods */
+    if (strcmp(method->answer, "region_growing") == 0) {
+	globals->method = ORM_RG;
+	globals->method_fn = region_growing;
+    }
+    else if (strcmp(method->answer, "mean_shift") == 0) {
+	globals->method = ORM_MS;
+	globals->method_fn = mean_shift;
+    }
+    else if (strcmp(method->answer, "watershed") == 0) {
+	globals->method = ORM_WS;
+	globals->method_fn = watershed;
+    }
     else
 	G_fatal_error(_("Unable to assign segmentation method"));
 
-    G_debug(1, "segmentation method: %d", globals->method);
+    G_debug(1, "segmentation method: %s", method->answer);
 
     /* distance methods for similarity measurement */
     if (strcmp(similarity->answer, "euclidean") == 0)

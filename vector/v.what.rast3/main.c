@@ -67,6 +67,7 @@ int main(int argc, char *argv[])
     G_add_keyword(_("position"));
     G_add_keyword(_("querying"));
     G_add_keyword(_("attribute table"));
+    G_add_keyword(_("surface information"));
     module->description =
 	_("Uploads 3D raster values at positions of vector points to the table.");
 
@@ -305,7 +306,7 @@ int main(int argc, char *argv[])
 	    G_snprintf(buf, 2048, " AND %s", opt.where->answer);
 	    db_append_string(&stmt, buf);
 	}
-	G_debug(3, db_get_string(&stmt));
+	G_debug(3, "%s", db_get_string(&stmt));
 
 	/* Update table */
 	if (db_execute_immediate(driver, &stmt) == DB_OK) {

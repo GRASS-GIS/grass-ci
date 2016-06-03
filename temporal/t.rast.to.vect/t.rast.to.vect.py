@@ -21,6 +21,7 @@
 #% keyword: conversion
 #% keyword: raster
 #% keyword: vector
+#% keyword: time
 #%end
 
 #%option G_OPT_STRDS_INPUT
@@ -47,6 +48,15 @@
 #% label: Basename of the new generated output maps
 #% description: A numerical suffix separated by an underscore will be attached to create a unique identifier
 #% required: yes
+#% multiple: no
+#%end
+
+#%option
+#% key: suffix
+#% type: string
+#% description: Suffix to add at basename: set 'gran' for granularity, 'time' for the full time format, 'num' for numerical suffix with a specific number of digits (default %05)
+#% answer: gran
+#% required: no
 #% multiple: no
 #%end
 
@@ -119,6 +129,7 @@ def main(options, flags):
     method = options["type"]
     nprocs = int(options["nprocs"])
     column = options["column"]
+    time_suffix = options["suffix"]
 
     register_null = flags["n"]
     t_flag = flags["t"]
@@ -184,7 +195,15 @@ def main(options, flags):
     # run r.to.vect all selected maps
     for map in maps:
         count += 1
-        map_name = "%s_%i" % (base, count)
+        if sp.get_temporal_type() == 'absolute' and time_suffix == 'gran':
+            suffix = tgis.create_suffix_from_datetime(map.temporal_extent.get_start_time(),
+                                                      sp.get_granularity())
+            map_name = "{ba}_{su}".format(ba=base, su=suffix)
+        elif sp.get_temporal_type() == 'absolute' and time_suffix == 'time':
+            suffix = tgis.create_time_suffix(map)
+            map_name = "{ba}_{su}".format(ba=base, su=suffix)
+        else:
+            map_name = tgis.create_numeric_suffic(base, count, time_suffix)
         new_map = tgis.open_new_map_dataset(map_name, None, type="vector",
                                             temporal_extent=map.get_temporal_extent(),
                                             overwrite=overwrite, dbif=dbif)

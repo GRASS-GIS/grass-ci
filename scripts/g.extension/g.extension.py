@@ -8,7 +8,7 @@
 #               Vaclav Petras <wenzeslaus gmail com> (support for general sources)
 # PURPOSE:      Tool to download and install extensions into local installation
 #
-# COPYRIGHT:    (C) 2009-2014 by Markus Neteler, and the GRASS Development Team
+# COPYRIGHT:    (C) 2009-2016 by Markus Neteler, and the GRASS Development Team
 #
 #               This program is free software under the GNU General
 #               Public License (>=v2). Read the file COPYING that
@@ -120,7 +120,8 @@
 
 #%rules
 #% required: extension, -l, -c, -g, -a
-#% exclusive: extension, -l, -c, -g, -a
+#% exclusive: extension, -l, -c, -g
+#% exclusive: extension, -l, -c, -a
 #%end
 
 # TODO: solve addon-extension(-module) confusion
@@ -134,14 +135,15 @@ import atexit
 import shutil
 import zipfile
 import tempfile
+from distutils.dir_util import copy_tree
 
 try:
     from urllib2 import HTTPError, URLError
     from urllib import urlopen, urlretrieve
 except ImportError:
     # there is also HTTPException, perhaps change to list
-    from urllib.request import HTTPError, URLError, \
-        urlopen, urlretrieve  # pylint: disable=E0611
+    from urllib.error import HTTPError, URLError
+    from urllib.request import urlopen, urlretrieve
 
 try:
     import xml.etree.ElementTree as etree
@@ -302,7 +304,17 @@ def get_installed_modules(force=False):
         return []
     ret = list()
     for tnode in tree.findall('task'):
-        ret.append(tnode.get('name').strip())
+        if flags['g']:
+            desc, keyw = get_optional_params(tnode)
+            ret.append('name={}'.format(tnode.get('name').strip()))
+            ret.append('description={}'.format(desc))
+            ret.append('keywords={}'.format(keyw))
+            ret.append('executables={}'.format(','.join(
+                get_module_executables(tnode))
+            ))
+        else:
+            ret.append(tnode.get('name').strip())
+
     return ret
 
 # list extensions (read XML file from grass.osgeo.org/addons)
@@ -317,7 +329,7 @@ def list_available_extensions(url):
     if flags['t']:
         grass.message(_("List of available extensions (toolboxes):"))
         tlist = get_available_toolboxes(url)
-        for toolbox_code, toolbox_data in tlist.iteritems():
+        for toolbox_code, toolbox_data in tlist.items():
             if flags['g']:
                 print('toolbox_name=' + toolbox_data['name'])
                 print('toolbox_code=' + toolbox_code)
@@ -327,8 +339,7 @@ def list_available_extensions(url):
                 list_available_modules(url, toolbox_data['modules'])
             else:
                 if toolbox_data['modules']:
-                    print(os.linesep.join(map(lambda x: '* ' + x,
-                                              toolbox_data['modules'])))
+                    print(os.linesep.join(['* ' + x for x in toolbox_data['modules']]))
     else:
         grass.message(_("List of available extensions (modules):"))
         list_available_modules(url)
@@ -379,6 +390,37 @@ def get_toolbox_modules(url, name):
         grass.fatal(_("Unable to fetch addons metadata file"))
 
     return tlist
+
+
+def get_module_files(mnode):
+    """Return list of module files
+
+    :param mnode: XML node for a module
+    """
+    flist = []
+    for file_node in mnode.find('binary').findall('file'):
+        filepath = file_node.text
+        flist.append(filepath)
+
+    return flist
+
+
+def get_module_executables(mnode):
+    """Return list of module executables
+
+    :param mnode: XML node for a module
+    """
+    flist = []
+    for filepath in get_module_files(mnode):
+        if filepath.startswith(options['prefix'] + os.path.sep + 'bin') or \
+           (sys.platform != 'win32' and
+                filepath.startswith(options['prefix'] + os.path.sep + 'scripts')):
+            filename = os.path.basename(filepath)
+            if sys.platform == 'win32':
+                filename = os.path.splitext(filename)[0]
+            flist.append(filename)
+
+    return flist
 
 
 def get_optional_params(mnode):
@@ -879,50 +921,39 @@ def install_extension_xml(url, mlist):
 
 def install_extension_win(name):
     """Install extension on MS Windows"""
-    # do not use hardcoded url -
-    # http://wingrass.fsv.cvut.cz/grassXX/addonsX.X.X
     grass.message(_("Downloading precompiled GRASS Addons <%s>...") %
                   options['extension'])
-    url = "http://wingrass.fsv.cvut.cz/" \
-          "grass%(major)s%(minor)s/addons/" \
-          "grass-%(major)s.%(minor)s.%(patch)s/" % \
-        {'major': version[0], 'minor': version[1], 'patch': version[2]}
 
-    grass.debug("url=%s" % url, 1)
+    # build base URL
+    if build_platform == 'x86_64':
+        platform = build_platform
+    else:
+        platform = 'x86'
+    base_url = "http://wingrass.fsv.cvut.cz/" \
+               "grass%(major)s%(minor)s/%(platform)s/addons/" \
+               "grass-%(major)s.%(minor)s.%(patch)s" % \
+               {'platform': platform,
+                'major': version[0], 'minor': version[1],
+                'patch': version[2]}
 
-    try:
-        zfile = url + name + '.zip'
-        url_file = urlopen(zfile, proxies=PROXIES)
+    # resolve ZIP URL
+    source, url = resolve_source_code(url='{}/{}.zip'.format(base_url, name))
 
-        # create addons dir if not exists
-        if not os.path.exists(options['prefix']):
-            try:
-                os.mkdir(options['prefix'])
-            except OSError as error:
-                grass.fatal(_("Unable to create <{}>. {}")
-                            .format(options['prefix'], error))
+    # to hide non-error messages from subprocesses
+    if grass.verbosity() <= 2:
+        outdev = open(os.devnull, 'w')
+    else:
+        outdev = sys.stdout
 
-        # download data
-        tmp_file = tempfile.TemporaryFile()
-        tmp_file.write(url_file.read())
-        try:
-            zfobj = zipfile.ZipFile(tmp_file)
-        except zipfile.BadZipfile as error:
-            grass.fatal('%s: %s' % (error, zfile))
+    # download Addons ZIP file
+    os.chdir(TMPDIR)  # this is just to not leave something behind
+    srcdir = os.path.join(TMPDIR, name)
+    download_source_code(source=source, url=url, name=name,
+                         outdev=outdev, directory=srcdir, tmpdir=TMPDIR)
 
-        for name in zfobj.namelist():
-            if name.endswith('/'):
-                directory = os.path.join(options['prefix'], name)
-                if not os.path.exists(directory):
-                    os.mkdir(directory)
-            else:
-                outfile = open(os.path.join(options['prefix'], name), 'wb')
-                outfile.write(zfobj.read(name))
-                outfile.close()
-
-        tmp_file.close()
-    except HTTPError:
-        grass.fatal(_("GRASS Addons <%s> not found") % name)
+    # copy Addons copy tree to destination directory
+    move_extracted_files(extract_dir=srcdir, target_dir=options['prefix'],
+                         files=os.listdir(srcdir))
 
     return 0
 
@@ -967,12 +998,15 @@ def move_extracted_files(extract_dir, target_dir, files):
     if len(files) == 1:
         shutil.copytree(os.path.join(extract_dir, files[0]), target_dir)
     else:
-        os.mkdir(target_dir)
+        if not os.path.exists(target_dir):
+            os.mkdir(target_dir)
         for file_name in files:
             actual_file = os.path.join(extract_dir, file_name)
             if os.path.isdir(actual_file):
-                shutil.copytree(actual_file,
-                                os.path.join(target_dir, file_name))
+                # shutil.copytree() replaced by copy_tree() because
+                # shutil's copytree() fails when subdirectory exists
+                copy_tree(actual_file,
+                          os.path.join(target_dir, file_name))
             else:
                 shutil.copy(actual_file, os.path.join(target_dir, file_name))
 
@@ -1056,7 +1090,10 @@ def download_source_code(source, url, name, outdev,
     elif source in ['remote_zip', 'official']:
         # we expect that the module.zip file is not by chance in the archive
         zip_name = os.path.join(tmpdir, 'extension.zip')
-        urlretrieve(url, zip_name)
+        f, h = urlretrieve(url, zip_name)
+        if h.get('content-type', '') != 'application/zip':
+            grass.fatal(_("Extension <%s> not found") % name)
+
         extract_zip(name=zip_name, directory=directory, tmpdir=tmpdir)
         fix_newlines(directory)
     elif source.startswith('remote_') and \
@@ -1221,8 +1258,7 @@ def remove_modules(mlist, force=False):
             for task in tree.findall('task'):
                 if name == task.get('name') and \
                         task.find('binary') is not None:
-                    for file_node in task.find('binary').findall('file'):
-                        flist.append(file_node.text)
+                    flist = get_module_files(task)
                     break
 
             if flist:
@@ -1496,7 +1532,7 @@ def resolve_known_host_service(url):
     """
     match = None
     actual_start = None
-    for key, value in KNOWN_HOST_SERVICES_INFO.iteritems():
+    for key, value in KNOWN_HOST_SERVICES_INFO.items():
         for start in value['possible_starts']:
             if url.startswith(start + value['domain']):
                 match = value
@@ -1643,7 +1679,7 @@ def main():
                                                to_system=flags['s'])
 
     # list available extensions
-    if flags['l'] or flags['c'] or flags['g']:
+    if flags['l'] or flags['c'] or (flags['g'] and not flags['a']):
         # using dummy module, we don't need any module URL now,
         # but will work only as long as the function does not check
         # if the URL is actually valid or something
@@ -1685,5 +1721,9 @@ if __name__ == "__main__":
     global TMPDIR
     TMPDIR = tempfile.mkdtemp()
     atexit.register(cleanup)
-    version = grass.version()['version'].split('.')
+
+    grass_version = grass.version()
+    version = grass_version['version'].split('.')
+    build_platform = grass_version['build_platform'].split('-', 1)[0]
+
     sys.exit(main())

@@ -42,11 +42,11 @@ To set up shell environment variables permanently:
 <li>
 To get personal BASH shell definitions (aliases, color listing option, ...)
 into GRASS, store them in:<br>
-<tt>$HOME/.grass.bashrc</tt></li>
+<tt>$HOME/.grass7/bashrc</tt></li>
 <li>
 To get personal CSH shell definitions (aliases, color listing option, ...)
 into GRASS, store them in:<br>
-<tt>$HOME/.grass.cshrc</tt></li>
+<tt>$HOME/.grass7/cshrc</tt></li>
 </ul>
 
 
@@ -106,6 +106,14 @@ PERMANENT
   <dt>GRASS_BATCH_JOB</dt>
   <dd>defines the name (path) of a shell script to be processed as
   batch job.</dd>
+
+  <dt>GRASS_COMPRESSOR</dt>
+  <dd>[libraster]<br>
+    the compression method for new raster maps can be set with the
+    environment variable GRASS_COMPRESSOR. Supported methods are RLE, 
+    ZLIB, LZ4, and BZIP2 if GRASS has been compiled with BZIP2 support. 
+    The default is ZLIB which can be changed with e.g. 
+    <tt>GRASS_COMPRESSOR=LZ4</tt></dd>
 
   <dt>GRASS_DB_ENCODING</dt>
   <dd>[various modules, wxGUI]<br>
@@ -186,8 +194,12 @@ PERMANENT
     raster maps are compressed using zlib compression. This applies to all 
     raster map types (CELL, FCELL, DCELL).
     <br><br>
+    Valid zlib compression levels are -1 to 9. The <tt>GRASS_ZLIB_LEVEL=-1</tt> corresponds
+    to the zlib default value (equivalent to <tt>GRASS_ZLIB_LEVEL=6</tt>). Often
+    <tt>GRASS_ZLIB_LEVEL=1</tt> gives the best compromise between speed and compression.
+    <br><br>
     If the variable doesn't exist, or the value cannot be parsed as an
-    integer, zlib's default compression level will be used.</dd>
+    integer, zlib's default compression level 6 will be used.</dd>
   
   <dt>GRASS_MESSAGE_FORMAT</dt>
   <dd>[various modules, wxGUI]<br>
@@ -299,17 +311,14 @@ PERMANENT
     GRASS session is quited.</dd>
 
   <dt>GRASS_VECTOR_TMPDIR_MAPSET</dt>
-  <dd> By default GRASS temporary directory is located in
+  <dd>[vectorlib]<br> By default GRASS temporary directory is located in
   <tt>$LOCATION/$MAPSET/.tmp/$HOSTNAME</tt>. If GRASS_VECTOR_TMPDIR_MAPSET is
   set to '0', the temporary directory is located in TMPDIR
   (environmental variable defined by the user or GRASS initialization
-  script if not given).
-
-  <p>
+  script if not given).<br>
   Important note: This variable is currently used only in vector
   library. In other words the variable is ignored by raster or
-  raster3d library.
-  </dd>
+  raster3d library.</dd>
 
   <dt>GRASS_VECTOR_TOPO_DEBUG</dt>
   <dd>[vectorlib, v.generalize]<br> If the environment variable

@@ -33,10 +33,10 @@ import os
 import os.path
 import tarfile
 
-from space_time_datasets import *
-from register import *
-import factory
-from factory import *
+from .space_time_datasets import *
+from .register import *
+from . import factory
+from .factory import *
 import grass.script as gscript
 from grass.exceptions import CalledModuleError
 
@@ -53,7 +53,7 @@ imported_maps = {}
 
 
 def _import_raster_maps_from_gdal(maplist, overr, exp, location, link, format_,
-                                  set_current_region=False):
+                                  set_current_region=False, memory=300):
     impflags = ""
     if overr:
         impflags += "o"
@@ -76,7 +76,7 @@ def _import_raster_maps_from_gdal(maplist, overr, exp, location, link, format_,
                                     overwrite=gscript.overwrite())
             else:
                 gscript.run_command("r.in.gdal", input=filename,
-                                    output=name,
+                                    output=name, memory=memory,
                                     flags=impflags,
                                     overwrite=gscript.overwrite())
 
@@ -173,7 +173,8 @@ def _import_vector_maps(maplist):
 
 def import_stds(input, output, directory, title=None, descr=None, location=None,
                 link=False, exp=False, overr=False, create=False,
-                stds_type="strds", base=None, set_current_region=False):
+                stds_type="strds", base=None, set_current_region=False,
+                memory=300):
     """Import space time datasets of type raster and vector
 
         :param input: Name of the input archive file
@@ -194,6 +195,7 @@ def import_stds(input, output, directory, title=None, descr=None, location=None,
                          should be imported
         :param base: The base name of the new imported maps, it will be
                      extended using a numerical index.
+        :param memory: Cache size for raster rows, used in r.in.gdal
     """
 
     global raise_on_error
@@ -210,6 +212,9 @@ def import_stds(input, output, directory, title=None, descr=None, location=None,
     tar = tarfile.open(name=input, mode='r')
 
     # Check for important files
+    msgr = get_tgis_message_interface()
+    msgr.message(_("Checking validity of input file (size: %0.1f MB). Make take a while..."
+        % (os.path.getsize(input)/(1024*1024.0))))
     members = tar.getnames()
     # Make sure that the basenames of the files are used for comparison
     member_basenames = [os.path.basename(name) for name in members]
@@ -221,6 +226,7 @@ def import_stds(input, output, directory, title=None, descr=None, location=None,
     if proj_file_name not in member_basenames:
         gscript.fatal(_("Unable to find projection file <%s>") % proj_file_name)
 
+    msgr.message(_("Extracting data..."))
     tar.extractall(path=directory)
     tar.close()
 
@@ -238,7 +244,7 @@ def import_stds(input, output, directory, title=None, descr=None, location=None,
         temp_file = open(temp_name, "w")
         proj_name = os.path.abspath(proj_file_name)
 
-        # We need to convert projection strings generated 
+        # We need to convert projection strings generated
         # from other programms than g.proj into
         # new line format so that the grass file comparison function
         # can be used to compare the projections
@@ -433,7 +439,8 @@ def import_stds(input, output, directory, title=None, descr=None, location=None,
         if type_ == "strds":
             if format_ == "GTiff" or format_ == "AAIGrid":
                 _import_raster_maps_from_gdal(maplist, overr, exp, location,
-                                              link, format_, set_current_region)
+                                              link, format_, set_current_region,
+                                              memory)
             if format_ == "pack":
                 _import_raster_maps(maplist, set_current_region)
         elif type_ == "stvds":

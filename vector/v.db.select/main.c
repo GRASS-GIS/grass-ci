@@ -2,13 +2,14 @@
 /***************************************************************
  *
  * MODULE:       v.db.select
- * 
+ *
  * AUTHOR(S):    Radim Blazek
  *               OGR support by Martin Landa <landa.martin gmail.com>
  *               -f flag by Huidae Cho <grass4u gmail.com>
- *               
+ *               group option by Luca Delucchi <lucadeluge gmail.com>
+ *
  * PURPOSE:      Print vector attributes
- *               
+ *
  * COPYRIGHT:    (C) 2005-2009, 2011-2014 by the GRASS Development Team
  *
  *               This program is free software under the GNU General
@@ -32,7 +33,7 @@ int main(int argc, char **argv)
 {
     struct GModule *module;
     struct Option *map_opt, *field_opt, *fs_opt, *vs_opt, *nv_opt, *col_opt,
-	*where_opt, *file_opt;
+	*where_opt, *file_opt, *group_opt;
     struct Flag *c_flag, *v_flag, *r_flag, *f_flag;
     dbDriver *driver;
     dbString sql, value_string;
@@ -43,7 +44,7 @@ int main(int argc, char **argv)
     struct field_info *Fi;
     int ncols, col, more;
     struct Map_info Map;
-    char query[1024];
+    char query[DB_SQL_MAX];
     struct ilist *list_lines;
     char *fs, *vs;
     struct bound_box *min_box, *line_box;
@@ -57,18 +58,25 @@ int main(int argc, char **argv)
     module->description = _("Prints vector map attributes.");
 
     map_opt = G_define_standard_option(G_OPT_V_MAP);
+    map_opt->guisection = _("Main");
 
     field_opt = G_define_standard_option(G_OPT_V_FIELD);
     field_opt->guisection = _("Selection");
 
     col_opt = G_define_standard_option(G_OPT_DB_COLUMNS);
     col_opt->guisection = _("Selection");
-    
+
     where_opt = G_define_standard_option(G_OPT_DB_WHERE);
     where_opt->guisection = _("Selection");
-    
+
+    group_opt = G_define_option();
+    group_opt->key = "group";
+    group_opt->required = NO;
+    group_opt->description = _("GROUP BY conditions of SQL statement without 'group by' keyword");
+    group_opt->guisection = _("Selection");
+
     fs_opt = G_define_standard_option(G_OPT_F_SEP);
-    fs_opt->guisection = _("Format");
+    fs_opt->guisection = _("Main");
 
     vs_opt = G_define_standard_option(G_OPT_F_SEP);
     vs_opt->key = "vertical_separator";
@@ -79,12 +87,13 @@ int main(int argc, char **argv)
     nv_opt = G_define_standard_option(G_OPT_M_NULL_VALUE);
     nv_opt->guisection = _("Format");
 
-    file_opt = G_define_standard_option(G_OPT_F_OUTPUT); 
+    file_opt = G_define_standard_option(G_OPT_F_OUTPUT);
     file_opt->key = "file";
-    file_opt->required = NO; 
-    file_opt->description = 
-	_("Name for output file (if omitted or \"-\" output to stdout)"); 
-    
+    file_opt->required = NO;
+    file_opt->guisection = _("Main");
+    file_opt->description =
+	_("Name for output file (if omitted or \"-\" output to stdout)");
+
     r_flag = G_define_flag();
     r_flag->key = 'r';
     r_flag->description =
@@ -112,12 +121,12 @@ int main(int argc, char **argv)
 	exit(EXIT_FAILURE);
 
     /* set input vector map name and mapset */
-    if (file_opt->answer && strcmp(file_opt->answer, "-") != 0) { 
-	if (NULL == freopen(file_opt->answer, "w", stdout)) { 
-	    G_fatal_error(_("Unable to open file <%s> for writing"), file_opt->answer); 
-	} 
-    } 
-    
+    if (file_opt->answer && strcmp(file_opt->answer, "-") != 0) {
+	if (NULL == freopen(file_opt->answer, "w", stdout)) {
+	    G_fatal_error(_("Unable to open file <%s> for writing"), file_opt->answer);
+	}
+    }
+
     min_box = line_box = NULL;
     list_lines = NULL;
 
@@ -137,7 +146,7 @@ int main(int argc, char **argv)
         vs = G_option_to_separator(vs_opt);
     else
         vs = NULL;
-    
+
     db_init_string(&sql);
     db_init_string(&value_string);
 
@@ -184,6 +193,15 @@ int main(int argc, char **argv)
 	sprintf(buf, " WHERE %s", where_opt->answer);
 	db_append_string(&sql, buf);
 	G_free(buf);
+    }
+
+    if (group_opt->answer) {
+        char *buf = NULL;
+
+        buf = G_malloc((strlen(group_opt->answer) + 8));
+        sprintf(buf, " GROUP BY %s", group_opt->answer);
+        db_append_string(&sql, buf);
+        G_free(buf);
     }
 
     if (db_open_select_cursor(driver, &sql, &cursor, DB_SEQUENTIAL) != DB_OK)

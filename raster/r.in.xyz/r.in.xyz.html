@@ -197,13 +197,54 @@ v.surf.rst in=lidar_min_pt elev=lidar_min.rst
 <h3>Import of x,y,string data</h3>
 
 <em>r.in.xyz</em> is expecting numeric values as z column. In order to 
-perform a occurence count operation even on x,y data with non-numeric 
+perform a occurrence count operation even on x,y data with non-numeric 
 attribute(s), the data can be imported using either the x or y 
 coordinate as a fake z column for <b>method</b>=<tt>n</tt> (count 
 number of points per grid cell), the z values are ignored anyway.
 
-<h2>EXAMPLE</h2>
+<h2>EXAMPLES</h2>
 
+<h3>Import of x,y,z ASCII into DEM</h3>
+
+Sometimes elevation data are delivered as x,y,z ASCII files instead of
+a raster matrix:
+
+<!-- NC: preparation for this example
+g.region raster=elevation res=15 -p 
+# 
+r.stats -1g elevation > elevation.xyz
+-->
+
+<div class="code"><pre>
+# Important: observe the raster spacing from the ASCII file:
+# ASCII file format (example):
+# 630007.5 228492.5 141.99614
+# 630022.5 228492.5 141.37904
+# 630037.5 228492.5 142.29822
+# 630052.5 228492.5 143.97987
+# ...
+# The point distance is 15m here.
+
+# detect extent, print result as g.region parameters
+r.in.xyz input=elevation.xyz separator=space -s output=dummy -g
+# ... n=228492.5 s=215007.5 e=644992.5 w=630007.5 b=55.578793 t=156.32986
+
+# set computational region, along with the actual raster resolution
+# which is defined by the ASCII file point spacing:
+g.region n=228492.5 s=215007.5 e=644992.5 w=630007.5 res=15 -p
+
+# enlarge computational region by half a raster cell (here 7.5m) to
+# store the points as cell centers:
+g.region n=n+7.5 s=s-7.5 w=w-7.5 e=e+7.5 -p
+
+# import XYZ ASCII file, with z values as raster cell values
+r.in.xyz input=elevation.xyz separator=space method=mean output=myelev
+
+# univariate statistics for verification of raster values
+r.univar myelev
+</pre></div>
+
+<h3>Import of LiDAR data and DEM creation</h3>
 Import the <a href="http://www.grassbook.org/ncexternal/index.html">Jockey's
 Ridge, NC, LIDAR dataset</a> (compressed file "lidaratm2.txt.gz"), and process it
 into a clean DEM:
@@ -260,15 +301,6 @@ r.colors lidar_min.rst_scaled rule=bcyr -n -e
 <h2>KNOWN ISSUES</h2>
 
 <ul>
-<li> <em>n</em> map sum can be ever-so-slightly more than `<tt>wc -l</tt>`
-  with e.g. <tt>percent=10</tt> or less.
-  <br>Cause unknown.
-
-<li> <em>n</em> map <tt>percent=100</tt> and <tt>percent=xx</tt> maps
-  differ slightly (point will fall above/below the segmentation line)
-  <br>Investigate with "<tt>r.mapcalc diff = bin_n.100 - bin_n.33</tt>" etc.
-  <br>Cause unknown.
-
 <li> "<tt>nan</tt>" can leak into <em>coeff_var</em> maps.
   <br>Cause unknown. Possible work-around: "<tt>r.null setnull=nan</tt>"
 <!-- Another method:  r.mapcalc 'No_nan = if(map == map, map, null() )' -->

@@ -93,6 +93,10 @@ r"""<!-- the files grass${grass_version_major}.html & helptext.html file live in
       <ul>
        <li class="box"><span><a href="http://grasswiki.osgeo.org/wiki/Faq">FAQ - Frequently Asked Questions</a> (Wiki)</span></li>
       </ul>
+      <p>
+      <ul>
+       <li class="box"><span><a href="graphical_index.html">Graphical index of functionality</a></span></li>
+      </ul>
       </td>
       <td width="33%" valign="top" class="box"><h3>&nbsp;Graphical User Interface</h3>
        <ul>
@@ -102,7 +106,7 @@ r"""<!-- the files grass${grass_version_major}.html & helptext.html file live in
        </ul>
 
        <ul>
-        <li class="box"><a href="topic_gui.html">GUI commands</a></li>
+        <li class="box"><a href="topic_GUI.html">GUI commands</a></li>
        </ul>
        <h3>&nbsp;Display</h3>
        <ul>
@@ -320,6 +324,24 @@ r"""
 
 <table>
 """)
+#"
+
+headerpso_tmpl = \
+r"""
+<link rel="stylesheet" href="grassdocs.css" type="text/css">
+<link rel="stylesheet" href="parser_standard_options.css" type="text/css">
+<script src="http://code.jquery.com/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="jquery.fixedheadertable.min.js"></script>
+<script type="text/javascript" src="parser_standard_options.js"></script>
+</head>
+<body style="width: 99%">
+<div id="container">
+
+<a href="index.html"><img src="grass_logo.png" alt="GRASS logo"></a>
+<hr class="header">
+<h2>Parser standard options</h2>
+<ul>
+"""
 #"
 
 ############################################################################

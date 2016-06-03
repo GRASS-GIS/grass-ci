@@ -19,6 +19,10 @@
 
 /* #def _OR_SHAPE_ */
 
+/* methods */
+#define ORM_RG 1	/* region growing */
+#define ORM_MS 2	/* mean shift */
+#define ORM_WS 3	/* watershed */
 
 /* row/col list */
 struct rc
@@ -33,6 +37,7 @@ struct rclist
     struct rc *tail, *head;
 };
 
+
 /* input and output files, as well as some other processing info */
 struct globals
 {
@@ -40,7 +45,8 @@ struct globals
     char *image_group;
     int weighted;		/* 0 if false/not selected, so we should scale input.
 				 * 1 if the scaling should be skipped */
-    int method;			/* Segmentation method */
+    int method;			/* Segmentation method code */
+    int (*method_fn)();		/* Segmentation method function */
     int nn;			/* number of neighbors, 4 or 8 */
     double max_diff;		/* max possible difference */
     double alpha;		/* similarity threshold */
@@ -104,7 +110,6 @@ int open_files(struct globals *);
 
 /* create_isegs.c */
 int create_isegs(struct globals *);
-int region_growing(struct globals *);
 void find_four_neighbors(int, int, int[][2]);
 void find_eight_neighbors(int, int, int[8][2]);
 double calculate_euclidean_similarity(struct ngbr_stats *, 
@@ -122,6 +127,14 @@ int update_band_vals(int, int, struct reg_stats *, struct globals *);
 /* void calculate_reg_stats(int, int, struct reg_stats *, 
                          struct globals *); */
 
+/* region_growing.c */
+int region_growing(struct globals *);
+
+/* mean_shift.c */
+int mean_shift(struct globals *);
+
+/* watershed.c */
+int watershed(struct globals *);
 
 /* rclist.c */
 void rclist_init(struct rclist *);

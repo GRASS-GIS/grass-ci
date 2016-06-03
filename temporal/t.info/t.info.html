@@ -15,6 +15,12 @@ information and metadata are stored in the temporal database.
 In addition, information about the chosen temporal database backend
 can be reported.
 
+<h2>NOTES</h2>
+
+Temporal databases stored in other mapsets can be used as long as they
+are in the user's current mapset search path (managed with
+<a href="g.mapsets.html">g.mapsets</a>).
+
 <h2>EXAMPLES</h2>
 
 <h3>Temporal DBMI information</h3>
@@ -33,12 +39,12 @@ t.info -s
  +----------------------------------------------------------------------------+
 </pre></div>
 
-<h3>space time dataset information</h3>
+<h3>Space time dataset information</h3>
 
 In order to obtain information about a space time dataset, run:
 
 <div class="code"><pre>
-t.info in=tempmean_monthly
+t.info input=tempmean_monthly
  +-------------------- Space Time Raster Dataset -----------------------------+
  |                                                                            |
  +-------------------- Basic information -------------------------------------+
@@ -85,17 +91,20 @@ t.info in=tempmean_monthly
  |     output="tempmean_monthly" title="Monthly precipitation"
  |     description="Dataset with monthly precipitation"
  | # 2014-11-27 09:44:32
- | t.register -i type="rast" inp="tempmean_monthly" maps="2009_01_tempmean,...,2012_12_tempmean" start="2009-01-01" increment="1 months"
+ | t.register -i type="rast" input="tempmean_monthly" maps="2009_01_tempmean,...,2012_12_tempmean" start="2009-01-01" increment="1 months"
  |
  +----------------------------------------------------------------------------+
 </pre></div>
+
+The "granularity" is the smallest gap size between the found time instances, i.e.
+it the greatest common divisor between all gaps in the time series.
 
 <h3>Temporal maps information</h3>
 
 In order to obtain information about a map in a space time dataset, run:
 
 <div class="code"><pre>
-t.info in=2009_01_tempmean type=rast
+t.info input=2009_01_tempmean type=raster
  +-------------------- Raster Dataset ----------------------------------------+
  |                                                                            |
  +-------------------- Basic information -------------------------------------+
@@ -132,6 +141,7 @@ t.info in=2009_01_tempmean type=rast
 
 <em>
 <a href="t.create.html">t.create</a>,
+<a href="t.list.html">t.list</a>,
 <a href="t.register.html">t.register</a>,
 <a href="r.info.html">r.info</a>,
 <a href="r3.info.html">r3.info</a>,

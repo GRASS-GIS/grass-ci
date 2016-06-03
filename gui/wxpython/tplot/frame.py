@@ -10,7 +10,7 @@ Classes:
  - frame::TplotFrame
  - frame::LookUp
 
-(C) 2012-2014 by the GRASS Development Team
+(C) 2012-2016 by the GRASS Development Team
 
 This program is free software under the GNU General Public License
 (>=v2). Read the file COPYING that comes with GRASS for details.
@@ -26,6 +26,7 @@ from grass.pygrass.modules import Module
 
 import grass.script as grass
 from core.utils import _
+from functools import reduce
 
 try:
     import matplotlib
@@ -38,9 +39,9 @@ try:
         NavigationToolbar2WxAgg as NavigationToolbar
     import matplotlib.dates as mdates
     from matplotlib import cbook
-except ImportError:
+except ImportError as e:
     raise ImportError(_('The Temporal Plot Tool needs the "matplotlib" '
-                        '(python-matplotlib) package to be installed.'))
+                        '(python-matplotlib) package to be installed. {}').format(e))
 
 from core.utils import _
 
@@ -51,6 +52,7 @@ from gui_core import gselect
 from core import globalvar
 from grass.pygrass.vector.geometry import Point
 from grass.pygrass.raster import RasterRow
+from grass.pygrass.gis.region import Region
 from collections import OrderedDict
 from subprocess import PIPE
 try:
@@ -106,6 +108,8 @@ class TplotFrame(wx.Frame):
         # We create a database interface here to speedup the GUI
         self.dbif = tgis.SQLDatabaseInterfaceConnection()
         self.dbif.connect()
+        self.Bind(wx.EVT_CLOSE, self.onClose)
+        self.region = Region()
 
     def init(self):
         self.timeDataR = OrderedDict()
@@ -124,6 +128,12 @@ class TplotFrame(wx.Frame):
         if self.dbif.connected is True:
             self.dbif.close()
         tgis.stop_subprocesses()
+
+    def onClose(self, evt):
+        # this two lines return errors during exit
+        # self.coorval.OnClose()
+        # self.cats.OnClose()
+        self.Destroy()
 
     def _layout(self):
         """Creates the main panel with all the controls on it:
@@ -162,22 +172,23 @@ class TplotFrame(wx.Frame):
         # ------------ITEMS IN NOTEBOOK PAGE (RASTER)------------------------
 
         self.controlPanelRaster = wx.Panel(parent=self.ntb, id=wx.ID_ANY)
-        self.datasetSelectLabelR = wx.StaticText(parent=self.controlPanelRaster,
-                                                 id=wx.ID_ANY,
-                                                 label=_('Raster temporal '
-                                                         'dataset (strds)'))
+        self.datasetSelectLabelR = wx.StaticText(
+            parent=self.controlPanelRaster,
+            id=wx.ID_ANY,
+            label=_(
+                'Raster temporal '
+                'dataset (strds)'))
 
-        self.datasetSelectR = gselect.Select(parent=self.controlPanelRaster,
-                                             id=wx.ID_ANY,
-                                             size=globalvar.DIALOG_GSELECT_SIZE,
-                                             type='strds', multiple=True)
+        self.datasetSelectR = gselect.Select(
+            parent=self.controlPanelRaster, id=wx.ID_ANY,
+            size=globalvar.DIALOG_GSELECT_SIZE, type='strds', multiple=True)
         self.coor = wx.StaticText(parent=self.controlPanelRaster, id=wx.ID_ANY,
                                   label=_('X and Y coordinates separated by '
                                           'comma:'))
         try:
             self._giface.GetMapWindow()
-            self.coorval = gselect.CoordinatesSelect(parent=self.controlPanelRaster,
-                                                     giface=self._giface)
+            self.coorval = gselect.CoordinatesSelect(
+                parent=self.controlPanelRaster, giface=self._giface)
         except:
             self.coorval = wx.TextCtrl(parent=self.controlPanelRaster,
                                        id=wx.ID_ANY,
@@ -204,15 +215,20 @@ class TplotFrame(wx.Frame):
 
         # ------------ITEMS IN NOTEBOOK PAGE (VECTOR)------------------------
         self.controlPanelVector = wx.Panel(parent=self.ntb, id=wx.ID_ANY)
-        self.datasetSelectLabelV = wx.StaticText(parent=self.controlPanelVector,
-                                                 id=wx.ID_ANY,
-                                                 label=_('Vector temporal '
-                                                         'dataset (strds)'))
-        self.datasetSelectV = gselect.Select(parent=self.controlPanelVector,
-                                             id=wx.ID_ANY,
-                                             size=globalvar.DIALOG_GSELECT_SIZE,
-                                             type='stvds', multiple=True)
-        self.datasetSelectV.Bind(wx.EVT_TEXT, self.OnVectorSelected)
+        self.datasetSelectLabelV = wx.StaticText(
+            parent=self.controlPanelVector, id=wx.ID_ANY,
+            label=_(
+                'Vector temporal '
+                'dataset (strds)\n'
+                'Please press enter if'
+                ' you digit the name'
+                ' instead select with'
+                ' combobox'))
+        self.datasetSelectV = gselect.Select(
+            parent=self.controlPanelVector, id=wx.ID_ANY,
+            size=globalvar.DIALOG_GSELECT_SIZE, type='stvds', multiple=True)
+        self.datasetSelectV.Bind(wx.EVT_COMBOBOX_CLOSEUP,
+                                 self.OnVectorSelected)
 
         self.attribute = gselect.ColumnSelect(parent=self.controlPanelVector)
         self.attributeLabel = wx.StaticText(parent=self.controlPanelVector,
@@ -221,19 +237,21 @@ class TplotFrame(wx.Frame):
         # TODO fix the category selection as done for coordinates
         try:
             self._giface.GetMapWindow()
-            self.cats = gselect.VectorCategorySelect(parent=self.controlPanelVector,
-                                                     giface=self._giface)
+            self.cats = gselect.VectorCategorySelect(
+                parent=self.controlPanelVector, giface=self._giface)
         except:
-            self.cats = wx.TextCtrl(parent=self.controlPanelVector, id=wx.ID_ANY,
-                                    size=globalvar.DIALOG_TEXTCTRL_SIZE)
+            self.cats = wx.TextCtrl(
+                parent=self.controlPanelVector,
+                id=wx.ID_ANY,
+                size=globalvar.DIALOG_TEXTCTRL_SIZE)
         self.catsLabel = wx.StaticText(parent=self.controlPanelVector,
                                        id=wx.ID_ANY,
                                        label=_('Select category of vector(s)'))
 
         self.controlPanelSizerVector = wx.BoxSizer(wx.VERTICAL)
-        #self.controlPanelSizer.Add(wx.StaticText(self.panel, id=wx.ID_ANY,
-        #label=_("Select space time raster dataset(s):")),
-        #pos=(0, 0), flag=wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
+        # self.controlPanelSizer.Add(wx.StaticText(self.panel, id=wx.ID_ANY,
+        # label=_("Select space time raster dataset(s):")),
+        # pos=(0, 0), flag=wx.EXPAND | wx.ALIGN_CENTER_VERTICAL)
         self.controlPanelSizerVector.Add(self.datasetSelectLabelV,
                                          flag=wx.EXPAND)
         self.controlPanelSizerVector.Add(self.datasetSelectV, flag=wx.EXPAND)
@@ -248,7 +266,6 @@ class TplotFrame(wx.Frame):
         self.controlPanelSizerVector.Fit(self)
         self.ntb.AddPage(page=self.controlPanelVector, text=_('STVDS'),
                          name='STVDS')
-
 
         # ------------Buttons on the bottom(draw,help)------------
         self.vButtPanel = wx.Panel(self.mainPanel, id=wx.ID_ANY)
@@ -274,6 +291,10 @@ class TplotFrame(wx.Frame):
         """Load data and read properties
         :param list timeseries: a list of timeseries
         """
+        if not self.poi:
+            GError(parent=self, message=_("Invalid input coordinates"),
+                   showTraceback=False)
+            return
         mode = None
         unit = None
         columns = ','.join(['name', 'start_time', 'end_time'])
@@ -292,7 +313,6 @@ class TplotFrame(wx.Frame):
             self.plotNameListR.append(name)
             self.timeDataR[name] = OrderedDict()
 
-
             self.timeDataR[name]['temporalDataType'] = etype
             self.timeDataR[name]['temporalType'] = sp.get_temporal_type()
             self.timeDataR[name]['granularity'] = sp.get_granularity()
@@ -300,18 +320,22 @@ class TplotFrame(wx.Frame):
             if mode is None:
                 mode = self.timeDataR[name]['temporalType']
             elif self.timeDataR[name]['temporalType'] != mode:
-                GError(parent=self, message=_("Datasets have different temporal"
-                                              " type (absolute x relative), "
-                                              "which is not allowed."))
+                GError(
+                    parent=self, message=_(
+                        "Datasets have different temporal"
+                        " type (absolute x relative), "
+                        "which is not allowed."))
                 return
 
             # check topology
             maps = sp.get_registered_maps_as_objects(dbif=self.dbif)
-            self.timeDataR[name]['validTopology'] = sp.check_temporal_topology(maps=maps, dbif=self.dbif)
+            self.timeDataR[name]['validTopology'] = sp.check_temporal_topology(
+                maps=maps, dbif=self.dbif)
 
             self.timeDataR[name]['unit'] = None  # only with relative
             if self.timeDataR[name]['temporalType'] == 'relative':
-                start, end, self.timeDataR[name]['unit'] = sp.get_relative_time()
+                start, end, self.timeDataR[name][
+                    'unit'] = sp.get_relative_time()
                 if unit is None:
                     unit = self.timeDataR[name]['unit']
                 elif self.timeDataR[name]['unit'] != unit:
@@ -393,7 +417,7 @@ class TplotFrame(wx.Frame):
             if not sp.is_in_db(dbif=self.dbif):
                 GError(message=_("Dataset <%s> not found in temporal "
                                  "database") % (fullname), parent=self,
-                                 showTraceback=False)
+                       showTraceback=False)
                 return
             sp.select(dbif=self.dbif)
 
@@ -408,13 +432,15 @@ class TplotFrame(wx.Frame):
             if mode is None:
                 mode = self.timeDataV[name]['temporalType']
             elif self.timeDataV[name]['temporalType'] != mode:
-                GError(parent=self, showTraceback=False,
-                       message=_("Datasets have different temporal type ("
-                                 "absolute x relative), which is not allowed."))
+                GError(
+                    parent=self, showTraceback=False, message=_(
+                        "Datasets have different temporal type ("
+                        "absolute x relative), which is not allowed."))
                 return
             self.timeDataV[name]['unit'] = None  # only with relative
             if self.timeDataV[name]['temporalType'] == 'relative':
-                start, end, self.timeDataV[name]['unit'] = sp.get_relative_time()
+                start, end, self.timeDataV[name][
+                    'unit'] = sp.get_relative_time()
                 if unit is None:
                     unit = self.timeDataV[name]['unit']
                 elif self.timeDataV[name]['unit'] != unit:
@@ -441,9 +467,12 @@ class TplotFrame(wx.Frame):
                         lay = "{map}_{layer}".format(map=row['name'],
                                                      layer=values['Layer'])
                         self.timeDataV[name][lay] = {}
-                        self.timeDataV[name][lay]['start_datetime'] = row['start_time']
-                        self.timeDataV[name][lay]['end_datetime'] = row['start_time']
-                        self.timeDataV[name][lay]['value'] = values['Attributes'][attribute]
+                        self.timeDataV[name][lay][
+                            'start_datetime'] = row['start_time']
+                        self.timeDataV[name][lay][
+                            'end_datetime'] = row['start_time']
+                        self.timeDataV[name][lay]['value'] = values[
+                            'Attributes'][attribute]
             else:
                 wherequery = ''
                 cats = self._getExistingCategories(rows[0]['name'], cats)
@@ -468,22 +497,26 @@ class TplotFrame(wx.Frame):
                     lay = int(row['layer'])
                     catkey = self._parseVDbConn(row['name'], lay)
                     if not catkey:
-                        GError(parent=self, showTraceback=False,
-                           message=_("No connection between vector map {vmap} "
-                                     "and layer {la}".format(vmap=row['name'],
-                                                              la=lay)))
+                        GError(
+                            parent=self, showTraceback=False, message=_(
+                                "No connection between vector map {vmap} "
+                                "and layer {la}".format(
+                                    vmap=row['name'], la=lay)))
                         return
-                    vals = grass.vector_db_select(map=row['name'], layer=lay,
-                                                  where=wherequery.format(key=catkey),
-                                                  columns=attribute)
+                    vals = grass.vector_db_select(
+                        map=row['name'], layer=lay, where=wherequery.format(
+                            key=catkey), columns=attribute)
                     layn = "lay{num}".format(num=lay)
                     for cat in cats:
                         catn = "cat{num}".format(num=cat)
                         if layn not in self.timeDataV[name][catn].keys():
                             self.timeDataV[name][catn][layn] = {}
-                        self.timeDataV[name][catn][layn]['start_datetime'] = row['start_time']
-                        self.timeDataV[name][catn][layn]['end_datetime'] = row['end_time']
-                        self.timeDataV[name][catn][layn]['value'] = vals['values'][int(cat)][0]
+                        self.timeDataV[name][catn][layn][
+                            'start_datetime'] = row['start_time']
+                        self.timeDataV[name][catn][layn][
+                            'end_datetime'] = row['end_time']
+                        self.timeDataV[name][catn][layn]['value'] = vals['values'][int(cat)][
+                            0]
         self.unit = unit
         self.temporalType = mode
         return
@@ -538,6 +571,11 @@ class TplotFrame(wx.Frame):
                 xdata.append(self.convert(values['start_datetime']))
                 ydata.append(values['value'])
 
+            if len(ydata) == ydata.count(None):
+                GError(parent=self, showTraceback=False,
+                       message=_("Problem getting data from raster temporal"
+                                 " dataset. Empty list of values."))
+                return
             self.lookUp.AddDataset(yranges=ydata, xranges=xdata,
                                    datasetName=name)
             color = self.colors.next()
@@ -546,7 +584,8 @@ class TplotFrame(wx.Frame):
                                                label=self.plotNameListR[i])[0])
 
         if self.temporalType == 'absolute':
-            self.axes2d.set_xlabel(_("Temporal resolution: %s" % self.timeDataR[name]['granularity']))
+            self.axes2d.set_xlabel(
+                _("Temporal resolution: %s" % self.timeDataR[name]['granularity']))
         else:
             self.axes2d.set_xlabel(_("Time [%s]") % self.unit)
         self.axes2d.set_ylabel(', '.join(self.yticksNames))
@@ -565,22 +604,35 @@ class TplotFrame(wx.Frame):
             self.yticksPos.append(1)  # TODO
             xdata = []
             ydata = []
-            for keys, values in self.timeDataV[name_cat[0]][name_cat[1]].iteritems():
+            for keys, values in self.timeDataV[
+                    name_cat[0]][
+                    name_cat[1]].iteritems():
                 if keys in ['temporalType', 'granularity', 'validTopology',
                             'unit', 'temporalDataType']:
                     continue
                 xdata.append(self.convert(values['start_datetime']))
                 ydata.append(values['value'])
 
+            if len(ydata) == ydata.count(None):
+                GError(parent=self, showTraceback=False,
+                       message=_("Problem getting data from raster temporal"
+                                 " dataset. Empty list of values."))
+                return
             self.lookUp.AddDataset(yranges=ydata, xranges=xdata,
                                    datasetName=name)
             color = self.colors.next()
 
-            self.plots.append(self.axes2d.plot(xdata, ydata, marker='o',
-                                               color=color, label=labelname)[0])
+            self.plots.append(
+                self.axes2d.plot(
+                    xdata,
+                    ydata,
+                    marker='o',
+                    color=color,
+                    label=labelname)[0])
         # ============================
         if self.temporalType == 'absolute':
-            self.axes2d.set_xlabel(_("Temporal resolution: %s" % self.timeDataV[name]['granularity']))
+            self.axes2d.set_xlabel(
+                _("Temporal resolution: %s" % self.timeDataV[name]['granularity']))
         else:
             self.axes2d.set_xlabel(_("Time [%s]") % self.unit)
         self.axes2d.set_ylabel(', '.join(self.yticksNames))
@@ -604,6 +656,11 @@ class TplotFrame(wx.Frame):
                 xdata.append(self.convert(values['start_datetime']))
                 ydata.append(values['value'])
 
+            if len(ydata) == ydata.count(None):
+                GError(parent=self, showTraceback=False,
+                       message=_("Problem getting data from raster temporal"
+                                 " dataset. Empty list of values."))
+                return
             self.lookUp.AddDataset(yranges=ydata, xranges=xdata,
                                    datasetName=name)
             color = self.colors.next()
@@ -612,7 +669,8 @@ class TplotFrame(wx.Frame):
                                                color=color, label=name)[0])
         # ============================
         if self.temporalType == 'absolute':
-            self.axes2d.set_xlabel(_("Temporal resolution: %s" % self.timeDataV[name]['granularity']))
+            self.axes2d.set_xlabel(
+                _("Temporal resolution: %s" % self.timeDataV[name]['granularity']))
         else:
             self.axes2d.set_xlabel(_("Time [%s]") % self.unit)
         self.axes2d.set_ylabel(', '.join(self.yticksNames))
@@ -657,6 +715,16 @@ class TplotFrame(wx.Frame):
                     GError(parent=self, message=_("Invalid input coordinates"),
                            showTraceback=False)
                     return
+                if not self.poi:
+                    GError(parent=self, message=_("Invalid input coordinates"),
+                           showTraceback=False)
+                    return
+                bbox = self.region.get_bbox()
+                if not bbox.contains(self.poi):
+                    GError(parent=self, message=_("Seed point outside the "
+                                                  "current region"),
+                           showTraceback=False)
+                    return
         # check raster dataset
         if datasetsR:
             datasetsR = datasetsR.split(',')
@@ -668,7 +736,10 @@ class TplotFrame(wx.Frame):
                 GError(parent=self, message=_("Invalid input raster dataset"),
                        showTraceback=False)
                 return
-
+            if not self.poi:
+                GError(parent=self, message=_("Invalid input coordinates"),
+                       showTraceback=False)
+                return
             self.datasetsR = datasetsR
 
         # check vector dataset
@@ -720,33 +791,38 @@ class TplotFrame(wx.Frame):
             allDatasets = reduce(lambda x, y: x + y, reduce(lambda x, y: x + y,
                                                             allDatasets))
             mapsets = tgis.get_tgis_c_library_interface().available_mapsets()
-            allDatasets = [i for i in sorted(allDatasets,
-                                             key=lambda l: mapsets.index(l[1]))]
+            allDatasets = [
+                i
+                for i in sorted(
+                    allDatasets, key=lambda l: mapsets.index(l[1]))]
 
         for dataset in datasets:
             errorMsg = _("Space time dataset <%s> not found.") % dataset
             if dataset.find("@") >= 0:
                 nameShort, mapset = dataset.split('@', 1)
-                indices = [n for n, (mapName, mapsetName, etype) in enumerate(allDatasets)
-                           if nameShort == mapName and mapsetName == mapset]
+                indices = [n for n, (mapName, mapsetName, etype) in enumerate(
+                    allDatasets) if nameShort == mapName and mapsetName == mapset]
             else:
-                indices = [n for n, (mapName, mapset, etype) in enumerate(allDatasets)
-                           if dataset == mapName]
+                indices = [n for n, (mapName, mapset, etype) in enumerate(
+                    allDatasets) if dataset == mapName]
 
             if len(indices) == 0:
                 raise GException(errorMsg)
             elif len(indices) >= 2:
-                dlg = wx.SingleChoiceDialog(self,
-                                            message=_("Please specify the "
-                                                      "space time dataset "
-                                                      "<%s>." % dataset),
-                                            caption=_("Ambiguous dataset name"),
-                                            choices=[("%(map)s@%(mapset)s:"
-                                                      " %(etype)s" % {'map': allDatasets[i][0],
-                                                                      'mapset': allDatasets[i][1],
-                                                                      'etype': allDatasets[i][2]})
-                                                     for i in indices],
-                                            style=wx.CHOICEDLG_STYLE | wx.OK)
+                dlg = wx.SingleChoiceDialog(
+                    self,
+                    message=_(
+                        "Please specify the "
+                        "space time dataset "
+                        "<%s>." % dataset),
+                    caption=_("Ambiguous dataset name"),
+                    choices=[
+                        ("%(map)s@%(mapset)s:"
+                         " %(etype)s" % {
+                             'map': allDatasets[i][0],
+                             'mapset': allDatasets[i][1],
+                             'etype': allDatasets[i][2]}) for i in indices],
+                    style=wx.CHOICEDLG_STYLE | wx.OK)
                 if dlg.ShowModal() == wx.ID_OK:
                     index = dlg.GetSelection()
                     validated.append(allDatasets[indices[index]])
@@ -802,18 +878,29 @@ class TplotFrame(wx.Frame):
             if cats:
                 self.cats.SetValue(cats)
         if self.datasetsR:
-            self.datasetSelectR.SetValue(','.join(map(lambda x: x[0] + '@' + x[1],
-                                                      self.datasetsR)))
+            self.datasetSelectR.SetValue(
+                ','.join(map(lambda x: x[0] + '@' + x[1], self.datasetsR)))
         self._redraw()
 
     def OnVectorSelected(self, event):
         """Update the controlbox related to stvds"""
         dataset = self.datasetSelectV.GetValue().strip()
-        vect_list = grass.read_command('t.vect.list', flags='s', input=dataset,
-                                       col='name')
-        vect_list = list(set(sorted(vect_list.split())))
-        for vec in vect_list:
-            self.attribute.InsertColumns(vec, 1)
+        if dataset:
+            try:
+                vect_list = grass.read_command('t.vect.list', flags='s',
+                                               input=dataset, column='name')
+            except Exception:
+                self.attribute.Clear()
+                GError(
+                    parent=self,
+                    message=_("Invalid input temporal dataset"),
+                    showTraceback=False)
+                return
+            vect_list = list(set(sorted(vect_list.split())))
+            for vec in vect_list:
+                self.attribute.InsertColumns(vec, 1)
+        else:
+            return
 
 
 class LookUp:
@@ -858,7 +945,7 @@ def InfoFormat(timeData, values):
             text.append(_("Space time 3D raster dataset: %s") % key)
 
         text.append(_("Value for {date} is {val}".format(date=val[0],
-                      val=val[1])))
+                                                         val=val[1])))
         text.append('\n')
     text.append(_("Press Del to dismiss."))
 

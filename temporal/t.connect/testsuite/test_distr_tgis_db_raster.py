@@ -12,61 +12,41 @@ from grass.gunittest.case import TestCase
 from grass.gunittest.gmodules import SimpleModule
 from grass.gunittest.utils import silent_rmtree
 import os
-import grass.temporal as tgis
 
 
 class TestRasterExtraction(TestCase):
 
     mapsets_to_remove = []
+    outfile = 'rastlist.txt'
+    gisenv = SimpleModule('g.gisenv', get='MAPSET')
+    TestCase.runModule(gisenv, expecting_stdout=True)
+    old_mapset = gisenv.outputs.stdout.strip()
 
     @classmethod
     def setUpClass(cls):
         os.putenv("GRASS_OVERWRITE", "1")
-        for i in range(1, 5):
+        for i in range(1, 7):
             mapset_name = "test%i" % i
             cls.runModule("g.mapset", flags="c", mapset=mapset_name)
             cls.mapsets_to_remove.append(mapset_name)
             cls.runModule("g.region", s=0, n=80,
                           w=0, e=120, b=0, t=50, res=10, res3=10)
+            cls.runModule("t.connect", flags="d")
             cls.runModule("t.info", flags="s")
             cls.runModule("r.mapcalc", expression="a1 = 100")
             cls.runModule("r.mapcalc", expression="a2 = 200")
             cls.runModule("r.mapcalc", expression="a3 = 300")
-
             cls.runModule("t.create", type="strds", temporaltype="absolute",
                           output="A", title="A test", description="A test")
             cls.runModule("t.register", flags="i", type="raster", input="A",
                           maps="a1,a2,a3",
                           start="2001-01-01", increment="%i months" % i)
 
-        # Here we reuse two mapset to share a temporal databse between mapsets
-        tgis.init()
-        ciface = tgis.get_tgis_c_library_interface()
-        cls.runModule("g.mapset", flags="c", mapset="test5")
-        driver = ciface.get_driver_name("test1")
-        database = ciface.get_database_name("test1")
-        cls.runModule("t.connect", driver=driver, database=database)
+        # Add the new mapsets to the search path
+        for mapset in cls.mapsets_to_remove:
+            cls.runModule("g.mapset", mapset=mapset)
+            cls.runModule("g.mapsets", operation="add", mapset=','.join(cls.mapsets_to_remove))
 
-        cls.runModule("g.mapset", flags="c", mapset="test6")
-        driver = ciface.get_driver_name("test2")
-        database = ciface.get_database_name("test2")
-        cls.runModule("t.connect", driver=driver, database=database)
-
-        for i in range(5, 7):
-            mapset_name = "test%i" % i
-            cls.runModule("g.mapset", mapset=mapset_name)
-            cls.runModule("g.region", s=0, n=80,
-                          w=0, e=120, b=0, t=50, res=10, res3=10)
-            cls.mapsets_to_remove.append(mapset_name)
-            cls.runModule("r.mapcalc", expression="a1 = 100")
-            cls.runModule("r.mapcalc", expression="a2 = 200")
-            cls.runModule("r.mapcalc", expression="a3 = 300")
-
-            cls.runModule("t.create", type="strds", temporaltype="absolute",
-                          output="A", title="A test", description="A test")
-            cls.runModule("t.register", flags="i", type="raster", input="A",
-                          maps="a1,a2,a3",
-                          start="2001-01-01", increment="%i months" % i)
 
     @classmethod
     def tearDownClass(cls):
@@ -76,6 +56,7 @@ class TestRasterExtraction(TestCase):
         gisenv = SimpleModule('g.gisenv', get='LOCATION_NAME')
         cls.runModule(gisenv, expecting_stdout=True)
         location = gisenv.outputs.stdout.strip()
+        cls.runModule("g.mapset", mapset=cls.old_mapset)
         for mapset_name in cls.mapsets_to_remove:
             mapset_path = os.path.join(gisdbase, location, mapset_name)
             silent_rmtree(mapset_path)
@@ -100,6 +81,20 @@ class TestRasterExtraction(TestCase):
 
         for a, b in zip(list_string.split("\n"), out.split("\n")):
             self.assertEqual(a.strip(), b.strip())
+
+        t_list = SimpleModule(
+            "t.list", quiet=True,
+            columns=["name", "mapset,start_time", "end_time", "number_of_maps"],
+            type="strds", where='name = "A"', output=self.outfile)
+        self.assertModule(t_list)
+        self.assertFileExists(self.outfile)
+        with open(self.outfile, 'r') as f:
+            read_data = f.read()
+        for a, b in zip(list_string.split("\n"), read_data.split("\n")):
+            self.assertEqual(a.strip(), b.strip())
+        #self.assertLooksLike(reference=read_data, actual=list_string)
+        if os.path.isfile(self.outfile):
+            os.remove(self.outfile)
 
     def test_trast_list(self):
         self.runModule("g.mapset", mapset="test1")
@@ -168,6 +163,17 @@ class TestRasterExtraction(TestCase):
 
         for a, b in zip(list_string.split("\n"), out.split("\n")):
             self.assertEqual(a.strip(), b.strip())
+
+        trast_list = SimpleModule("t.rast.list", quiet=True, flags="s",
+                                  input="A@test5", output=self.outfile)
+        self.assertModule(trast_list)
+        self.assertFileExists(self.outfile)
+        with open(self.outfile, 'r') as f:
+            read_data = f.read()
+        for a, b in zip(list_string.split("\n"), read_data.split("\n")):
+            self.assertEqual(a.strip(), b.strip())
+        if os.path.isfile(self.outfile):
+            os.remove(self.outfile)
 
     def test_strds_info(self):
         self.runModule("g.mapset", mapset="test4")
@@ -288,8 +294,7 @@ class TestRasterExtraction(TestCase):
 
         info = SimpleModule(
             "t.info", flags="g", type="raster", input="a1@test5")
-        self.assertModuleKeyValue(
-            module=info, reference=tinfo_string, precision=2, sep="=")
+
 
 if __name__ == '__main__':
     from grass.gunittest.main import test

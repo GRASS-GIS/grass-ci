@@ -21,6 +21,7 @@
 #% keyword: vector
 #% keyword: database
 #% keyword: select
+#% keyword: time
 #%end
 
 #%option G_OPT_STVDS_INPUT
@@ -30,7 +31,7 @@
 #%end
 
 #%option G_OPT_F_SEP
-#% description: Field separator character between the output columns
+#% label: Field separator character between the output columns
 #%end
 
 #%option G_OPT_V_FIELD
@@ -42,6 +43,7 @@
 #%option G_OPT_T_WHERE
 #% key: t_where
 #%end
+from __future__ import print_function
 
 import grass.script as grass
 import grass.temporal as tgis
@@ -100,14 +102,14 @@ def main():
                             separator, separator, entry)
                         if col_names != col_names_new:
                             col_names = col_names_new
-                            print col_names
+                            print(col_names)
                     else:
                         if row["end_time"]:
-                            print "%s%s%s%s%s" % (row["start_time"], separator,
-                                                  row["end_time"], separator, entry)
+                            print("%s%s%s%s%s" % (row["start_time"], separator,
+                                                  row["end_time"], separator, entry))
                         else:
-                            print "%s%s%s%s" % (row["start_time"],
-                                                separator, separator, entry)
+                            print("%s%s%s%s" % (row["start_time"],
+                                                separator, separator, entry))
                     count += 1
 
 if __name__ == "__main__":

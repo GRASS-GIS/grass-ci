@@ -6,7 +6,7 @@
  * PURPOSE:      Generates the font configuration file by scanning various
  *               directories for GRASS stroke and Freetype-compatible fonts.
  *              
- * COPYRIGHT:    (C) 2007 by the GRASS Development Team
+ * COPYRIGHT:    (C) 2007-215 by the GRASS Development Team
  *
  *               This program is free software under the GNU General Public
  *               License (>=v2). Read the file COPYING that comes with GRASS
@@ -23,6 +23,7 @@
 
 #include <grass/gis.h>
 #include <grass/fontcap.h>
+#include <grass/glocale.h>
 
 #include "local_proto.h"
 
@@ -51,7 +52,7 @@ void find_freetype_fonts(void)
     int i;
 
     if (FT_Init_FreeType(&ftlibrary) != 0)
-	G_fatal_error("Unable to initialise Freetype");
+        G_fatal_error(_("Unable to initialise Freetype"));
 
     for (i = 0; i < numsearchdirs; i++)
 	find_fonts(searchdirs[i]);
@@ -117,8 +118,11 @@ static void find_fonts(const char *dirpath)
 				  maxfonts * sizeof(struct GFONT_CAP));
 		}
 
+		G_debug(3, "find_fonts(): file=%s",  filepath);
 		if (FT_New_Face(ftlibrary, filepath, index, &face) == 0) {
-		    facesinfile = face->num_faces;
+		    if (index == 0)
+			facesinfile = face->num_faces;
+
 		    /* Only use scalable fonts */
 		    if (face->face_flags & FT_FACE_FLAG_SCALABLE) {
 			char *buf_ptr;
@@ -139,14 +143,19 @@ static void find_fonts(const char *dirpath)
 				       buf_ptr, (int)index);
 			else
 			    fontcap[totalfonts].name = G_store(buf_ptr);
-			/* There might not be a style name but there will always be a
-			 * family name. */
-			if (face->style_name == NULL)
-			    fontcap[totalfonts].longname =
-				G_store(face->family_name);
-			else
-			    G_asprintf(&fontcap[totalfonts].longname, "%s %s",
-				       face->family_name, face->style_name);
+			
+			if (face->family_name && face->family_name > (FT_String *) 31) { /* avoid segfault on cygwin */
+			    /* There might not be a style name but there will always be a
+			     * family name. */
+			    if (face->style_name == NULL)
+				fontcap[totalfonts].longname = G_store(face->family_name);
+			    else
+				G_asprintf(&fontcap[totalfonts].longname, "%s %s",
+					   face->family_name, face->style_name);
+			}
+			else {
+			    fontcap[totalfonts].longname = G_store("");
+			}
 			totalfonts++;
 		    }
 

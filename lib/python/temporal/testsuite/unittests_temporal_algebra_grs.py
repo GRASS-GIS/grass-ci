@@ -62,7 +62,7 @@ class TestTemporalAlgebraGranularity(TestCase):
         tgis.register_maps_in_space_time_dataset(type="raster", name="D", maps="d3",
                                                  start="2001-05-01", increment="31 days", interval=True)
         tgis.register_maps_in_space_time_dataset(type="raster", name=None,  maps="singletmap", 
-                                                start="2001-01-03", end="2001-01-04", interval=True)
+                                                start="2001-01-03", end="2001-01-04")
 
     def tearDown(self):
         pass
@@ -77,12 +77,12 @@ class TestTemporalAlgebraGranularity(TestCase):
 
     def test_common_granularity_1(self):
         """Testing the common granularity function. """
-        ta = tgis.TemporalAlgebraParser(run = True, debug = True)
+        ta = tgis.TemporalAlgebraParser(run=True, debug=True)
         expr = 'R = A : B'
         ret = ta.setup_common_granularity(expression=expr)
 
         self.assertEqual(ret, True)
-        self.assertEqual(ta.granularity, "1 months")
+        self.assertEqual(ta.granularity, "1 month")
 
         ta.count = 0
         ta.stdstype = "strds"

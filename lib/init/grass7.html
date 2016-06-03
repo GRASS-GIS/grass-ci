@@ -28,7 +28,10 @@
 <dd> Creates new GRASS projected location in specified GISDBASE with given EPSG code
 
 <dt><b>-c EPSG:code:datum_trans</b>
-  <dd> Creates new GRASS projected location in specified GISDBASE with given EPSG code and datum transform parameters
+<dd> Creates new GRASS projected location in specified GISDBASE with given EPSG code and datum transform parameters
+
+<dt><b>-f</b>
+<dd> Forces removal of .gislock if exists (use with care!). Only with -text flag
 
 <dt><b>-text</b>
 <dd> Indicates that Text-based User Interface should be used (skip welcome screen)
@@ -39,6 +42,12 @@
 <dt><b>-gui</b>
 <dd> Indicates that Graphical User Interface
 (<em><a href="wxGUI.html">wxGUI</a></em>) should be used
+
+<dt><b>--config</b>
+<dd> Prints GRASS configuration parameters (options: arch, build, compiler, path, revision)
+
+<dt><b>-exec EXECUTABLE</b>
+<dd> Execute GRASS module or script. The provided executable will be executed in GRASS session
 </dl>
 
 <h3>Parameters:</h3>
@@ -102,7 +111,7 @@ shell environment variables.
 <p>Note that you will need to set these variables using the
 appropriate method required for the UNIX shell that you use (e.g. in a
 Bash shell you must <tt>export</tt> the variables for them to
-propogate).
+propagate).
 
 <h3>User Interface Environment Variable</h3>
 
@@ -186,7 +195,7 @@ environment variables. The available variables are as follows:
 <dl>
 <dt>LOCATION
 <dd> A fully qualified path to a mapset
-    (eg <tt>/usr/local/share/grassdata/spearfish60/PERMANENT</tt>). This
+    (eg <tt>/usr/local/share/grassdata/spearfish70/PERMANENT</tt>). This
     environment variable overrides the GISDBASE, LOCATION_NAME, and
     MAPSET variables.
 <dt>GISDBASE
@@ -223,13 +232,13 @@ script. The script file must have its executable bit set.
 <dt><b>grass71 -text</b>
 <dd> Start GRASS using the text-based user interface. Appropriate
 location and mapset must be set by environmental variables (see
-examples bellow) otherwise taken from the last GRASS session.</dd>
+examples below) otherwise taken from the last GRASS session.</dd>
 
 <dt><b>grass71 -gtext</b>
 <dd> Start GRASS using the text-based user interface. The user will be
     prompted to choose the appropriate location and mapset.
 
-<dt><b>grass71 $HOME/grassdata/spearfish60/user1</b>
+<dt><b>grass71 $HOME/grassdata/spearfish70/user1</b>
 <dd> Start GRASS using the default user interface and automatically
     launch into the given mapset, bypassing the mapset selection menu.
 
@@ -299,9 +308,9 @@ The following are some possible examples.
 The environment variables are defined as follows:
     
 <div class="code"><pre>
-LOCATION = /usr/local/share/grassdata/spearfish60/PERMANENT
+LOCATION = /usr/local/share/grassdata/spearfish70/PERMANENT
 GISDBASE = /usr/local/share/grassdata
-LOCATION_NAME = spearfish60
+LOCATION_NAME = spearfish70
 MAPSET = PERMANENT
 </pre></div>
 
@@ -320,7 +329,7 @@ The environment variables are defined as follows:
     
 <div class="code"><pre>
 GISDBASE = /usr/local/share/grassdata
-LOCATION_NAME = spearfish60
+LOCATION_NAME = spearfish70
 MAPSET = PERMANENT
 </pre></div>
 

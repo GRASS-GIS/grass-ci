@@ -9,8 +9,9 @@ for details.
 :authors: Soeren Gebbert
 """
 import getpass
-from abstract_map_dataset import *
-from abstract_space_time_dataset import *
+from .abstract_map_dataset import *
+from .abstract_space_time_dataset import *
+import grass.script.array as garray
 
 ###############################################################################
 
@@ -71,6 +72,16 @@ class RasterDataset(AbstractMapDataset):
              | East-west resolution:....... 10.0
              | Minimum value:.............. 1.0
              | Maximum value:.............. 1.0
+
+            >>> grass.run_command("r.timestamp", map="strds_map_test_case",
+            ...                   date="2 years", quiet=True)
+            0
+            >>> rmap.read_timestamp_from_grass()
+            True
+            >>> rmap.get_temporal_extent_as_tuple()
+            (2, None)
+            >>> rmap.get_relative_time_unit()
+            'years'
 
             >>> newmap = rmap.get_new_instance("new@PERMANENT")
             >>> isinstance(newmap, RasterDataset)
@@ -170,7 +181,7 @@ class RasterDataset(AbstractMapDataset):
            the map will be exported using r.out.bin to a temporary location
            and assigned to the memmap object that is returned by this function.
 
-           In case the raster map does not exists, an empty temporary
+           In case the raster map does not exist, an empty temporary
            binary file will be created and assigned to the memap object.
 
            You need to call the write function to write the memmap
@@ -391,6 +402,16 @@ class Raster3DDataset(AbstractMapDataset):
              | Number of depths:........... 10
              | Top-Bottom resolution:...... 10.0
 
+            >>> grass.run_command("r3.timestamp", map="str3ds_map_test_case",
+            ...                   date="2 years", quiet=True)
+            0
+            >>> r3map.read_timestamp_from_grass()
+            True
+            >>> r3map.get_temporal_extent_as_tuple()
+            (2, None)
+            >>> r3map.get_relative_time_unit()
+            'years'
+
             >>> newmap = r3map.get_new_instance("new@PERMANENT")
             >>> isinstance(newmap, Raster3DDataset)
             True
@@ -504,7 +525,7 @@ class Raster3DDataset(AbstractMapDataset):
            the map will be exported using r3.out.bin to a temporary location
            and assigned to the memmap object that is returned by this function.
 
-           In case the 3D raster map does not exists, an empty temporary
+           In case the 3D raster map does not exist, an empty temporary
            binary file will be created and assigned to the memap object.
 
            You need to call the write function to write the memmap
@@ -721,6 +742,17 @@ class VectorDataset(AbstractMapDataset):
              | Number of islands .......... 0
              | Number of holes ............ 0
              | Number of volumes .......... 0
+
+            >>> grass.run_command("v.timestamp", map="stvds_map_test_case",
+            ...                   date="2 years", quiet=True)
+            0
+            >>> vmap.read_timestamp_from_grass()
+            True
+            >>> vmap.get_temporal_extent_as_tuple()
+            (2, None)
+            >>> vmap.get_relative_time_unit()
+            'years'
+
             >>> newmap = vmap.get_new_instance("new@PERMANENT")
             >>> isinstance(newmap, VectorDataset)
             True

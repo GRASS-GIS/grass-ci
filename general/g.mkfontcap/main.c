@@ -6,7 +6,7 @@
  * PURPOSE:      Generates the font configuration file by scanning various
  *               directories for GRASS stroke and Freetype-compatible fonts.
  *              
- * COPYRIGHT:    (C) 2007 by the GRASS Development Team
+ * COPYRIGHT:    (C) 2007-2015 by the GRASS Development Team
  *
  *               This program is free software under the GNU General Public
  *               License (>=v2). Read the file COPYING that comes with GRASS
@@ -46,7 +46,7 @@ static const char *standarddirs[] = {
     "${HOME}/Library/Fonts",
     "/Library/Fonts",
     "/System/Library/Fonts",
-    "${WINDIR}/Fonts",
+    "${WINDIR}\\Fonts",
     NULL
 };
 

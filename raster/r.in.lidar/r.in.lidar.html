@@ -199,10 +199,16 @@ map. [In this example the user may want to include a lower bound filter in
 <em>r.mapcalc</em> to remove highly variable points (small <em>n</em>) or run
 <em>r.neighbors</em> to smooth the stddev map before further use.]
 
+<h2>NOTES</h2>
 
-<h2>EXAMPLE</h2>
+The typical file extensions for the LAS format are .las and .laz (compressed). 
+The compressed LAS (.laz) format can be imported only if libLAS has been compiled 
+with laszip support. It is also recommended to compile libLAS with GDAL which is
+used to test if the LAS projection matches that of the GRASS location.
 
-Import of a LAS file into an existing location/mapset (metric):
+<h2>EXAMPLES</h2>
+
+Import of a LAS file into an existing location/mapset (metric units):
 
 <div class="code"><pre>
 # set the computational region automatically, resol. for binning is 5m
@@ -211,13 +217,13 @@ g.region raster=lidar_dem_mean -p
 r.univar lidar_dem_mean
 </pre></div>
 
-<p>
-Serpent Mound dataset:
+<h3>Serpent Mound dataset</h3>
+
 This example is analogous to the example used in the GRASS wiki page for
 <a href="http://grasswiki.osgeo.org/wiki/LIDAR#Import_LAS_as_raster_DEM">importing LAS as raster DEM</a>.
 <p>The sample LAS data are in the file "Serpent Mound Model LAS Data.las", 
 available at 
-<a href="http://www.appliedimagery.com/downloads/sampledata/Serpent%20Mound%20Model%20LAS%20Data.las">appliedimagery.com</a>
+<a href="http://www.appliedimagery.com/downloads/sampledata/Serpent%20Mound%20Model%20LAS%20Data.las">appliedimagery.com</a>:
 
 <div class="code"><pre>
 # print LAS file info
@@ -240,11 +246,57 @@ r.in.lidar input="Serpent Mound Model LAS Data.las" \
            output=Serpent_Mound_Model_LAS_Data method=mean
 </pre></div>
 
-<h2>NOTES</h2>
-The typical file extensions for the LAS format are .las and .laz (compressed). 
-The compressed LAS (.laz) format can be imported only if libLAS has been compiled 
-with laszip support. It is also recommended to compile libLAS with GDAL, 
-needed to test for matching projections.
+<center>
+<img src="r_in_lidar.png">
+<p><em>Figure: Elevation for the whole area of Serpent Mound dataset</em></p>
+</center>
+
+<h3>Height above ground</h3>
+
+The mean height above ground of the points can be computed for each
+raster cell (the ground elevation is given by the raster map
+<tt>elevation</tt>):
+
+<div class="code"><pre>
+g.region raster=elevation -p
+r.in.lidar input=points.las output=mean_height_above_ground base_raster=elevation method=mean
+</pre></div>
+
+In this type of computation, it might be advantageous to change the resolution
+to match the precision of the points rather than deriving it from the base raster.
+<!-- TODO: say how -->
+<h3>Multiple file input</h3>
+
+The file option requres a file that contains a list of file names with the full 
+path. For example, a list of files in the directory /home/user/data:
+<div class="code"><pre>
+points1.laz
+points2.laz
+points3.laz
+</pre></div>
+
+would be lised in the file as:
+<div class="code"><pre>
+/home/user/data/points1.laz
+/home/user/data/points2.laz
+/home/user/data/points3.laz
+</pre></div>
+On Linux and OSX, this file can be automatically generated with the command:
+<div class="code"><pre>
+ls /home/user/data/*.laz > /home/user/data/filelist.txt
+</pre></div>
+On Windows:
+<div class="code"><pre>
+dir /b c:\users\user\data\*.laz > c:\users\user\data\filelist.txt
+</pre></div>
+
+The mean height above ground example above would then be:
+
+<div class="code"><pre>
+g.region raster=elevation -p
+r.in.lidar file=/home/user/data/filelist.txt output=mean_height_above_ground base_raster=elevation method=mean
+</pre></div>
+
 
 <h2>TODO</h2>
 
@@ -260,11 +312,6 @@ needed to test for matching projections.
 <h2>KNOWN ISSUES</h2>
 
 <ul>
-<li> <em>n</em> map <tt>percent=100</tt> and <tt>percent=xx</tt> maps
-  differ slightly (point will fall above/below the segmentation line)
-  <br>Investigate with "<tt>r.mapcalc diff = bin_n.100 - bin_n.33</tt>" etc.
-  <br>Cause unknown.
-
 <li> "<tt>nan</tt>" can leak into <em>coeff_var</em> maps.
   <br>Cause unknown. Possible work-around: "<tt>r.null setnull=nan</tt>"
 <!-- Another method:  r.mapcalc 'No_nan = if(map == map, map, null() )' -->

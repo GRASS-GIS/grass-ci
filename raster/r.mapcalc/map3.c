@@ -10,6 +10,7 @@
 #include <grass/raster3d.h>
 #include <grass/btree.h>
 #include <grass/glocale.h>
+#include <grass/calc.h>
 
 #include "mapcalc.h"
 #include "globals.h"
@@ -27,6 +28,7 @@ void setup_region(void)
     rows = current_region3.rows;
     columns = current_region3.cols;
     depths = current_region3.depths;
+    calc_init(columns);
 }
 
 /****************************************************************************/
@@ -255,7 +257,7 @@ static void translate_from_colors(map * m, DCELL * rast, CELL * cell,
  * to compute the key and the index
  *
  * This uses the BTREE library to manage the tree itself
- * btree structure must already be intialized
+ * btree structure must already be initialized
  * pcats structure must already contain category labels
  */
 
@@ -573,6 +575,16 @@ void close_maps(void)
 	close_map(&maps[i]);
 
     num_maps = 0;
+}
+
+void list_maps(FILE *fp, const char *sep)
+{
+    int i;
+
+    for (i = 0; i < num_maps; i++) {
+        const struct map *m = &maps[i];
+        fprintf(fp, "%s%s@%s", i ? sep : "", m->name, m->mapset);
+    }
 }
 
 /****************************************************************************/
