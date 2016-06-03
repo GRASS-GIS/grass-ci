@@ -25,5 +25,6 @@
             --with-proj-share=/usr/share/proj \
             --with-wxwidgets=/usr/bin/wx-config \
             --with-python \
-            --with-cairo \
+            --with-cairo
+
 make -j2
