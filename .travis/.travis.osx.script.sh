@@ -4,22 +4,38 @@
 ## some tests for the recipe 
 # brew audit -v $RECIPE
 
-## install GRASS 7.1 
+## install GRASS trunk
 brew install --HEAD \
-             --with-nc_spm_08_grass7 \
-             --with-ffmpeg \
-             --with-mysql \
-             --with-netcdf \
+             --enable-shared \
              --with-postgresql \
-             --with-openblas \
-             --with-liblas \
-             grass-71
+             --with-cxx \
+             --with-gdal-1 \
+             --with-freetype \
+             --with-readline \
+             --with-nls \
+             --with-odbc \
+             --with-geos \
+             --with-lapack \
+             --with-netcdf \
+             --with-blas \
+             --with-sqlite \
+             --with-freetype \
+             --with-python \
+             grass-trunk
 
-brew test -v grass-71
-brew info grass-71
+## Not implementyed yet:
+             # --enable-largefile
+             # --with-ffmpeg \
+             # --with-mysql \
+             # --with-netcdf \
+             # --with-openblas \
+             # --with-liblas \
+
+brew test -v grass-trunk
+# brew info grass-trunk
 
 ## run tests
 ## grass71 ./nc_basic_spm_grass7/PERMANENT --exec python -m grass.gunittest.main --location './nc_basic_spm_grass7' --location-type nc
 
-## uninstall grass-71
-brew uninstall grass-71
+## uninstall grass-trunk
+# brew uninstall grass-trunk

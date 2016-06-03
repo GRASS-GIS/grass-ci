@@ -5,5 +5,8 @@
 brew tap rkrug/experimental
 brew tap rkrug/head-only
 brew tap rkrug/dev-only
+
 brew tap homebrew/science
+brew tap osgeo/osgeo4mac
+
 brew update
