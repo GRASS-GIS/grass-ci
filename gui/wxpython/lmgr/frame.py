@@ -756,6 +756,11 @@ class GMFrame(wx.Frame):
                 self.GetMapDisplay().AddLegend(cmd=command, showDialog=False)
             else:
                 self.GetMapDisplay().AddLegend(showDialog=True)
+        elif layertype == 'northarrow':
+            if len(command) > 1:
+                self.GetMapDisplay().AddArrow(cmd=command, showDialog=False)
+            else:
+                self.GetMapDisplay().AddArrow(showDialog=True)
         elif layertype == 'redraw':
             self.GetMapDisplay().OnRender(None)
         elif layertype == 'export':
@@ -1462,28 +1467,39 @@ class GMFrame(wx.Frame):
             else:
                 maptree.SelectItem(layer, select=False)
 
+
         busy.Destroy()
 
         # set render property again when all layers are loaded
         for i, display in enumerate(gxwXml.displays):
             mapdisplay[i].mapWindowProperties.autoRender = display['render']
 
-        for idx, mdisp in enumerate(mapdisplay):
+            for overlay in gxwXml.overlays:
+                # overlay["cmd"][0] name of command e.g. d.barscale, d.legend
+                # overlay["cmd"][1:] parameters and flags
+                if overlay['display'] == i:
+                    if overlay['cmd'][0] == "d.legend":
+                        mapdisplay[i].AddLegend(overlay['cmd'])
+                    if overlay['cmd'][0] == "d.barscale":
+                        mapdisplay[i].AddBarscale(overlay['cmd'])
+                    if overlay['cmd'][0] == "d.northarrow":
+                        mapdisplay[i].AddArrow(overlay['cmd'])
+
             # avoid double-rendering when loading workspace
             # mdisp.MapWindow2D.UpdateMap()
             # nviz
-            if gxwXml.displays[idx]['viewMode'] == '3d':
-                mdisp.AddNviz()
+            if gxwXml.displays[i]['viewMode'] == '3d':
+                mapdisplay[i].AddNviz()
                 self.nviz.UpdateState(view=gxwXml.nviz_state['view'],
                                       iview=gxwXml.nviz_state['iview'],
                                       light=gxwXml.nviz_state['light'])
-                mdisp.MapWindow3D.constants = gxwXml.nviz_state['constants']
-                for idx, constant in enumerate(mdisp.MapWindow3D.constants):
-                    mdisp.MapWindow3D.AddConstant(constant, idx + 1)
+                mapdisplay[i].MapWindow3D.constants = gxwXml.nviz_state['constants']
+                for idx, constant in enumerate(mapdisplay[i].MapWindow3D.constants):
+                    mapdisplay[i].MapWindow3D.AddConstant(constant, i + 1)
                 for page in ('view', 'light', 'fringe', 'constant', 'cplane'):
                     self.nviz.UpdatePage(page)
                 self.nviz.UpdateSettings()
-                mdisp.toolbars['map'].combo.SetSelection(1)
+                mapdisplay[i].toolbars['map'].combo.SetSelection(1)
 
         return True
 
