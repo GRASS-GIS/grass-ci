@@ -89,7 +89,7 @@ from core import globalvar
 from core.utils import _
 from core.gcmd import GMessage, GError
 from core.debug import Debug
-from gui_core.wrap import Button
+from gui_core.wrap import Button, SearchCtrl
 
 
 class NotebookController:
@@ -1076,11 +1076,11 @@ class SearchModuleWidget(wx.Panel):
                 parent=self, id=wx.ID_ANY, size=(-1, 25),
                 style=wx.TE_PROCESS_ENTER)
         else:
-            self._search = wx.SearchCtrl(
+            self._search = SearchCtrl(
                 parent=self, id=wx.ID_ANY, size=(-1, 25),
                 style=wx.TE_PROCESS_ENTER)
             self._search.SetDescriptiveText(_('Fulltext search'))
-            self._search.SetToolTipString(
+            self._search.SetToolTip(
                 _("Type to search in all modules. Press Enter for next match."))
 
         self._search.Bind(wx.EVT_TEXT, self.OnSearchModule)
@@ -1088,7 +1088,7 @@ class SearchModuleWidget(wx.Panel):
 
         if self._showTip:
             self._searchTip = StaticWrapText(parent=self, id=wx.ID_ANY,
-                                             size=(-1, 35))
+                                  label="Choose a module", size=(-1, 35))
 
         if self._showChoice:
             self._searchChoice = wx.Choice(parent=self, id=wx.ID_ANY)
@@ -1199,7 +1199,7 @@ class SearchModuleWidget(wx.Panel):
         """Reset widget"""
         self._search.SetValue('')
         if self._showTip:
-            self._searchTip.SetLabel('')
+            self._searchTip.SetLabel('Choose a module')
 
 
 class ManageSettingsWidget(wx.Panel):

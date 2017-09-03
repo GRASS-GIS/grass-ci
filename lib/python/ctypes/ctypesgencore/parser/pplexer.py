@@ -10,14 +10,6 @@ Reference is C99:
 
 __docformat__ = 'restructuredtext'
 
-try:
-    from builtins import long
-    PY2 = True
-except ImportError:
-    # python3
-    PY2 = False
-    long = int
-
 import os
 import re
 import shlex
@@ -29,6 +21,13 @@ import ctypes
 from . import lex
 from . import yacc
 from .lex import TOKEN
+
+
+PY2 = True
+if sys.version_info.major == 3:
+    PY2 = False
+    long = int
+
 
 tokens = (
     'HEADER_NAME', 'IDENTIFIER', 'PP_NUMBER', 'CHARACTER_CONSTANT',
@@ -52,7 +51,7 @@ subs = {
     'L': '[a-zA-Z_]',
     'H': '[a-fA-F0-9]',
     'E': '[Ee][+-]?\s*{D}+',
-    'FS': '[FflL]',
+    'FS': '([FfLl]|d[dfl]|D[DFL]|[fFdD][0-9]+x?)',
     'IS': '[uUlL]*',
 }
 # Helper: substitute {foo} with subs[foo] in string (makes regexes more lexy)
@@ -226,10 +225,10 @@ def t_ANY_float(t):
     exp = m.group("exp")
     suf = m.group("suf")
 
-    if dp or exp or (suf and suf in ("Ff")):
+    if dp or exp or (suf and suf not in ("Ll")):
         s = m.group(0)
         if suf:
-            s = s[:-1]
+            s = s[:-len(suf)]
         # Attach a prefix so the parser can figure out if should become an
         # integer, float, or long
         t.value = "f" + s

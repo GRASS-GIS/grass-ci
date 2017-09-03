@@ -188,7 +188,8 @@ int main(int argc, char *argv[])
     zrange_opt->type = TYPE_DOUBLE;
     zrange_opt->required = NO;
     zrange_opt->key_desc = "min,max";
-    zrange_opt->description = _("Filter range for Z data (min,max)");
+    zrange_opt->label = _("Filter range for Z data (min,max)");
+    zrange_opt->description = _("Applied after base_raster transformation step");
     zrange_opt->guisection = _("Selection");
 
     zscale_opt = G_define_option();
@@ -329,6 +330,7 @@ int main(int argc, char *argv[])
     base_rast_res_flag->description =
         _("For getting values from base raster, use its actual"
           " resolution instead of computational region resolution");
+    base_rast_res_flag->guisection = _("Transform");
 
     only_valid_flag = G_define_flag();
     only_valid_flag->key = 'v';

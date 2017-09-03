@@ -1108,9 +1108,11 @@ class GMFrame(wx.Frame):
             GMessage(parent=self,
                      message=_("Current mapset is <%s>.") % mapset)
 
+            # TODO: this does not use the actual names if they were
+            # renamed (it just uses the numbers)
             dispId = 1
             for display in self.GetMapDisplay(onlyCurrent=False):
-                display.SetTitleNumber(dispId)  # TODO: signal ?
+                display.SetTitleWithName(dispId)  # TODO: signal ?
                 dispId += 1
 
     def OnChangeCWD(self, event=None, cmd=None):
@@ -1719,11 +1721,12 @@ class GMFrame(wx.Frame):
             self.notebookLayers.SetPageText(
                 page=self.currentPageNum, text=name)
             mapdisplay = self.GetMapDisplay()
-            mapdisplay.SetTitle(
-                _("GRASS GIS {version} Map Display: {name} - Location: {loc}").format(
-                    version=grass.version()['version'],
-                    name=name,
-                    loc=grass.gisenv()["LOCATION_NAME"]))
+            # There is a slight inconsistency: When creating the display
+            # we use just the number, but when user renames it,
+            # we use the full name. Both cases make sense and each
+            # separately gives expected result, so we keep this
+            # behavior.
+            mapdisplay.SetTitleWithName(name)
         dlg.Destroy()
 
     def OnRasterRules(self, event):
@@ -2380,6 +2383,23 @@ class GMFrame(wx.Frame):
 
         # show map display
         self.GetMapDisplay().Show()
+
+    def OnShowRegionExtent(self, event):
+        """Add vector labels map layer to the current layer tree"""
+        # start new map display if no display is available
+        if not self.currentPage:
+            self.NewDisplay(show=True)
+        # get current map display
+        mapdisp = self.GetMapDisplay()
+        # change the property
+        mapdisp.mapWindowProperties.showRegion = True
+        # show map display (user said show so make sure it is visible)
+        mapdisp.Show()
+        # redraw map if auto-rendering is enabled
+        # seems little too low level for this place
+        # no redraw when Render is unchecked
+        if mapdisp.IsAutoRendered():
+            mapdisp.GetMapWindow().UpdateMap(render=False)
 
     def OnDeleteLayer(self, event):
         """Remove selected map layer from the current layer Tree

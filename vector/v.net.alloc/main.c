@@ -5,11 +5,11 @@
  *
  * AUTHOR(S):    Radim Blazek
  *               Stepan Turek <stepan.turek seznam.cz> (turns support)
- *               Markus Metz (costs from/to centers)
+ *               Markus Metz (costs from/to centers; attributes)
  *
  * PURPOSE:      Allocate subnets for nearest centers
  *               
- * COPYRIGHT:    (C) 2001, 2016 by the GRASS Development Team
+ * COPYRIGHT:    (C) 2001, 2016,2017 by the GRASS Development Team
  *
  *               This program is free software under the 
  *               GNU General Public License (>=v2). 
@@ -30,39 +30,44 @@
 int main(int argc, char **argv)
 {
     int i, ret, line, center1, center2;
-    int nlines, nnodes, type, ltype, afield, nfield, geo, cat, tfield,
-	tucfield;
+    int nlines, nnodes, type, ltype, afield, nfield, geo, cat;
+    int tfield, tucfield;
     int node1, node2;
     double e1cost, e2cost, n1cost, n2cost, s1cost, s2cost, l, l1, l2;
     struct Option *map, *output, *method_opt;
     struct Option *afield_opt, *nfield_opt, *afcol, *abcol, *ncol, *type_opt,
 	*term_opt, *tfield_opt, *tucfield_opt;
-    struct Flag *geo_f, *turntable_f;
+    struct Flag *geo_f, *turntable_f, *ucat_f;
     struct GModule *module;
     struct Map_info Map, Out;
     struct cat_list *catlist;
     CENTER *Centers = NULL;
     int acenters = 0, ncenters = 0;
     NODE *Nodes;
-    struct line_cats *Cats;
+    struct line_cats *Cats, *ICats, *OCats;
     struct line_pnts *Points, *SPoints;
     int graph_version;
     int from_centers;
 
+    /* Attribute table */
+    int unique_cats, ucat, ocat, n;
+    char buf[2000];
+    dbString sql;
+    dbDriver *driver;
+    struct field_info *Fi;
+
     /* initialize GIS environment */
-    G_gisinit(argv[0]);		/* reads grass env, stores program name to G_program_name() */
+    G_gisinit(argv[0]);
 
     /* initialize module */
     module = G_define_module();
     G_add_keyword(_("vector"));
     G_add_keyword(_("network"));
     G_add_keyword(_("cost allocation"));
-    module->label =
-	_("Allocates subnets for nearest centers (direction from center).");
+    module->label = _("Allocates subnets for nearest centers.");
     module->description =
-	_("center node must be opened (costs >= 0). "
-	  "Costs of center node are used in calculation");
-
+	_("Center node must be opened (costs >= 0). "
+	  "Costs of center node are used in calculation.");
 
     map = G_define_standard_option(G_OPT_V_INPUT);
     output = G_define_standard_option(G_OPT_V_OUTPUT);
@@ -103,24 +108,19 @@ int main(int argc, char **argv)
     nfield_opt->required = YES;
     nfield_opt->label = _("Node layer");
 
-    afcol = G_define_option();
+    afcol = G_define_standard_option(G_OPT_DB_COLUMN);
     afcol->key = "arc_column";
-    afcol->type = TYPE_STRING;
-    afcol->required = NO;
-    afcol->description = _("Arc forward/both direction(s) cost column (number)");
+    afcol->description =
+	_("Arc forward/both direction(s) cost column (number)");
     afcol->guisection = _("Cost");
 
-    abcol = G_define_option();
+    abcol = G_define_standard_option(G_OPT_DB_COLUMN);
     abcol->key = "arc_backward_column";
-    abcol->type = TYPE_STRING;
-    abcol->required = NO;
     abcol->description = _("Arc backward direction cost column (number)");
     abcol->guisection = _("Cost");
 
-    ncol = G_define_option();
+    ncol = G_define_standard_option(G_OPT_DB_COLUMN);
     ncol->key = "node_column";
-    ncol->type = TYPE_STRING;
-    ncol->required = NO;
     ncol->description = _("Node cost column (number)");
     ncol->guisection = _("Cost");
 
@@ -150,12 +150,21 @@ int main(int argc, char **argv)
     geo_f->description =
 	_("Use geodesic calculation for longitude-latitude locations");
 
+    ucat_f = G_define_flag();
+    ucat_f->key = 'u';
+    ucat_f->label =
+	_("Create unique categories and attribute table");
+    ucat_f->description =
+	_("Default: same category like nearest center");
+
     if (G_parser(argc, argv))
 	exit(EXIT_FAILURE);
 
     Vect_check_input_output_name(map->answer, output->answer, G_FATAL_EXIT);
 
     Cats = Vect_new_cats_struct();
+    ICats = Vect_new_cats_struct();
+    OCats = Vect_new_cats_struct();
     Points = Vect_new_line_struct();
     SPoints = Vect_new_line_struct();
 
@@ -163,6 +172,8 @@ int main(int argc, char **argv)
 
     catlist = Vect_new_cat_list();
     Vect_str_to_cat_list(term_opt->answer, catlist);
+
+    unique_cats = ucat_f->answer;
 
     if (geo_f->answer)
 	geo = 1;
@@ -181,9 +192,10 @@ int main(int argc, char **argv)
     /* Build graph */
     graph_version = 1;
     from_centers = 1;
-    if (method_opt->answer[0] == 't' && !turntable_f->answer) {
-	graph_version = 2;
+    if (method_opt->answer[0] == 't') {
 	from_centers = 0;
+	if (!turntable_f->answer)
+	    graph_version = 2;
     }
     if (turntable_f->answer)
 	Vect_net_ttb_build_graph(&Map, type, afield, nfield, tfield, tucfield,
@@ -217,7 +229,7 @@ int main(int argc, char **argv)
 	if (Vect_cat_in_cat_list(cat, catlist)) {
 	    Vect_net_get_node_cost(&Map, node, &n1cost);
 	    if (n1cost == -1) {	/* closed */
-		G_warning("Centre at closed node (costs = -1) ignored");
+		G_warning(_("Center at closed node (costs = -1) ignored"));
 	    }
 	    else {
 		if (acenters == ncenters) {
@@ -228,34 +240,47 @@ int main(int argc, char **argv)
 		}
 		Centers[ncenters].cat = cat;
 		Centers[ncenters].node = node;
-		G_debug(2, "centre = %d node = %d cat = %d", ncenters,
+		G_debug(2, "center = %d node = %d cat = %d", ncenters,
 			node, cat);
 		ncenters++;
 	    }
 	}
     }
 
-    G_message(_("Number of centers: [%d] (nlayer: [%d])"), ncenters, nfield);
+    G_message(_("Number of centers: %d (nlayer %d)"), ncenters, nfield);
 
     if (ncenters == 0)
-	G_warning(_("Not enough centers for selected nlayer. "
-		    "Nothing will be allocated."));
+	G_warning(_("Not enough centers for selected nlayer. Nothing will be allocated."));
 
-    /* alloc and reset space for all lines */
+    /* alloc and reset space for all nodes */
     if (turntable_f->answer) {
-	/* if turntable is used we are looking for lines as destinations, not the intersections (nodes) */
+	/* if turntable is used we are looking for lines as destinations, instead of the intersections (nodes) */
 	Nodes = (NODE *) G_calloc((nlines * 2 + 2), sizeof(NODE));
+	for (i = 2; i <= (nlines * 2 + 2); i++) {
+	    Nodes[i].center = -1;/* NOTE: first two items of Nodes are not used */
+	}
+
     }
     else {
 	Nodes = (NODE *) G_calloc((nnodes + 1), sizeof(NODE));
+	for (i = 1; i <= nnodes; i++) {
+	    Nodes[i].center = -1;
+	}
     }
 
     /* Fill Nodes by nearest center and costs from that center */
 
     if (turntable_f->answer) {
-	G_message(_("Calculating costs from centers ..."));
-	alloc_from_centers_loop_tt(&Map, Nodes, Centers, ncenters,
-				   tucfield);
+	if (from_centers) {
+	    G_message(_("Calculating costs from centers ..."));
+	    alloc_from_centers_loop_tt(&Map, Nodes, Centers, ncenters,
+				       tucfield);
+	}
+	else {
+	    G_message(_("Calculating costs to centers ..."));
+	    alloc_to_centers_loop_tt(&Map, Nodes, Centers, ncenters,
+				       tucfield);
+	}
     }
     else {
 	if (from_centers) {
@@ -274,11 +299,64 @@ int main(int argc, char **argv)
 
     Vect_hist_command(&Out);
 
+    Fi = NULL;
+    driver = NULL;
+    if (unique_cats) {
+	/* create attribute table:
+	 * cat: new category
+	 * ocat: original category in afield
+	 * center: nearest center
+	 */
+	Fi = Vect_default_field_info(&Out, 1, NULL, GV_MTABLE);
+	Vect_map_add_dblink(&Out, 1, NULL, Fi->table, GV_KEY_COLUMN, Fi->database,
+			    Fi->driver);
+
+	driver = db_start_driver_open_database(Fi->driver, Fi->database);
+	if (driver == NULL)
+	    G_fatal_error(_("Unable to open database <%s> by driver <%s>"),
+			  Fi->database, Fi->driver);
+	db_set_error_handler_driver(driver);
+
+	sprintf(buf,
+		"create table %s ( %s integer, ocat integer, center integer )",
+		Fi->table, GV_KEY_COLUMN);
+
+	db_init_string(&sql);
+	db_set_string(&sql, buf);
+	G_debug(2, "%s", db_get_string(&sql));
+
+	if (db_execute_immediate(driver, &sql) != DB_OK) {
+	    G_fatal_error(_("Unable to create table: '%s'"), db_get_string(&sql));
+	}
+
+	if (db_create_index2(driver, Fi->table, GV_KEY_COLUMN) != DB_OK)
+	    G_warning(_("Cannot create index"));
+
+	if (db_grant_on_table
+	    (driver, Fi->table, DB_PRIV_SELECT, DB_GROUP | DB_PUBLIC) != DB_OK)
+	    G_fatal_error(_("Cannot grant privileges on table <%s>"), Fi->table);
+
+	db_begin_transaction(driver);
+    }
+
+    G_message(_("Allocating subnets..."));
     nlines = Vect_get_num_lines(&Map);
+    ucat = 1;
     for (line = 1; line <= nlines; line++) {
-	ltype = Vect_read_line(&Map, Points, NULL, line);
+	G_percent(line, nlines, 2);
+
+	ltype = Vect_read_line(&Map, Points, ICats, line);
 	if (!(ltype & type)) {
 	    continue;
+	}
+
+	if (unique_cats) {
+	    Vect_reset_cats(OCats);
+	    for (n = 0; n < ICats->n_cats; n++) {
+		if (ICats->field[n] == afield) {
+		    Vect_cat_set(OCats, 2, ICats->cat[n]);
+		}
+	    }
 	}
 
 	if (turntable_f->answer) {
@@ -294,6 +372,10 @@ int main(int argc, char **argv)
 	    center2 = Nodes[node2].center;
 	    s1cost = Nodes[node1].cost;
 	    s2cost = Nodes[node2].cost;
+	    if (s1cost > 0)
+		s1cost /= Map.dgraph.cost_multip;
+	    if (s2cost > 0)
+		s2cost /= Map.dgraph.cost_multip;
 
 	    Vect_net_get_node_cost(&Map, node1, &n1cost);
 	    Vect_net_get_node_cost(&Map, node2, &n2cost);
@@ -331,7 +413,30 @@ int main(int argc, char **argv)
 		    cat = Centers[center1].cat;	/* line reachable */
 		else
 		    cat = Centers[center2].cat;
-		Vect_cat_set(Cats, 1, cat);
+
+		if (unique_cats) {
+		    Vect_cat_set(Cats, 1, ucat);
+		    for (n = 0; n < OCats->n_cats; n++) {
+			Vect_cat_set(Cats, 2, OCats->cat[n]);
+		    }
+		    ocat = -1;
+		    Vect_cat_get(ICats, afield, &ocat);
+
+		    sprintf(buf,
+			    "insert into %s values ( %d, %d, %d )",
+			    Fi->table, ucat, ocat, cat);
+		    db_set_string(&sql, buf);
+		    G_debug(3, "%s", db_get_string(&sql));
+
+		    if (db_execute_immediate(driver, &sql) != DB_OK) {
+			G_fatal_error(_("Cannot insert new record: %s"),
+				      db_get_string(&sql));
+		    }
+		    ucat++;
+		}
+		else
+		    Vect_cat_set(Cats, 1, cat);
+
 		Vect_write_line(&Out, ltype, Points, Cats);
 	    }
 	    else {		/* each node in different area */
@@ -340,7 +445,30 @@ int main(int argc, char **argv)
 		    G_debug(3,
 			    "    -> arc is not reachable from 1. node -> alloc to 2. node");
 		    cat = Centers[center2].cat;
-		    Vect_cat_set(Cats, 1, cat);
+
+		    if (unique_cats) {
+			Vect_cat_set(Cats, 1, ucat);
+			for (n = 0; n < OCats->n_cats; n++) {
+			    Vect_cat_set(Cats, 2, OCats->cat[n]);
+			}
+			ocat = -1;
+			Vect_cat_get(ICats, afield, &ocat);
+
+			sprintf(buf,
+				"insert into %s values ( %d, %d, %d )",
+				Fi->table, ucat, ocat, cat);
+			db_set_string(&sql, buf);
+			G_debug(3, "%s", db_get_string(&sql));
+
+			if (db_execute_immediate(driver, &sql) != DB_OK) {
+			    G_fatal_error(_("Cannot insert new record: %s"),
+					  db_get_string(&sql));
+			}
+			ucat++;
+		    }
+		    else
+			Vect_cat_set(Cats, 1, cat);
+
 		    Vect_write_line(&Out, ltype, Points, Cats);
 		    continue;
 		}
@@ -348,7 +476,30 @@ int main(int argc, char **argv)
 		    G_debug(3,
 			    "    -> arc is not reachable from 2. node -> alloc to 1. node");
 		    cat = Centers[center1].cat;
-		    Vect_cat_set(Cats, 1, cat);
+
+		    if (unique_cats) {
+			Vect_cat_set(Cats, 1, ucat);
+			for (n = 0; n < OCats->n_cats; n++) {
+			    Vect_cat_set(Cats, 2, OCats->cat[n]);
+			}
+			ocat = -1;
+			Vect_cat_get(ICats, afield, &ocat);
+
+			sprintf(buf,
+				"insert into %s values ( %d, %d, %d )",
+				Fi->table, ucat, ocat, cat);
+			db_set_string(&sql, buf);
+			G_debug(3, "%s", db_get_string(&sql));
+
+			if (db_execute_immediate(driver, &sql) != DB_OK) {
+			    G_fatal_error(_("Cannot insert new record: %s"),
+					  db_get_string(&sql));
+			}
+			ucat++;
+		    }
+		    else
+			Vect_cat_set(Cats, 1, cat);
+
 		    Vect_write_line(&Out, ltype, Points, Cats);
 		    continue;
 		}
@@ -362,12 +513,59 @@ int main(int argc, char **argv)
 		 * Note this check also possibility of (e1cost + e2cost) = 0 */
 		if (s1cost + e1cost <= s2cost) {	/* whole arc reachable from node1 */
 		    cat = Centers[center1].cat;
-		    Vect_cat_set(Cats, 1, cat);
+
+		    Vect_reset_cats(Cats);
+		    if (unique_cats) {
+			Vect_cat_set(Cats, 1, ucat);
+			for (n = 0; n < OCats->n_cats; n++) {
+			    Vect_cat_set(Cats, 2, OCats->cat[n]);
+			}
+			ocat = -1;
+			Vect_cat_get(ICats, afield, &ocat);
+
+			sprintf(buf,
+				"insert into %s values ( %d, %d, %d )",
+				Fi->table, ucat, ocat, cat);
+			db_set_string(&sql, buf);
+			G_debug(3, "%s", db_get_string(&sql));
+
+			if (db_execute_immediate(driver, &sql) != DB_OK) {
+			    G_fatal_error(_("Cannot insert new record: %s"),
+					  db_get_string(&sql));
+			}
+			ucat++;
+		    }
+		    else
+			Vect_cat_set(Cats, 1, cat);
+
 		    Vect_write_line(&Out, ltype, Points, Cats);
 		}
 		else if (s2cost + e2cost <= s1cost) {	/* whole arc reachable from node2 */
 		    cat = Centers[center2].cat;
-		    Vect_cat_set(Cats, 1, cat);
+
+		    if (unique_cats) {
+			Vect_cat_set(Cats, 1, ucat);
+			for (n = 0; n < OCats->n_cats; n++) {
+			    Vect_cat_set(Cats, 2, OCats->cat[n]);
+			}
+			ocat = -1;
+			Vect_cat_get(ICats, afield, &ocat);
+
+			sprintf(buf,
+				"insert into %s values ( %d, %d, %d )",
+				Fi->table, ucat, ocat, cat);
+			db_set_string(&sql, buf);
+			G_debug(3, "%s", db_get_string(&sql));
+
+			if (db_execute_immediate(driver, &sql) != DB_OK) {
+			    G_fatal_error(_("Cannot insert new record: %s"),
+					  db_get_string(&sql));
+			}
+			ucat++;
+		    }
+		    else
+			Vect_cat_set(Cats, 1, cat);
+
 		    Vect_write_line(&Out, ltype, Points, Cats);
 		}
 		else {		/* split */
@@ -395,7 +593,30 @@ int main(int argc, char **argv)
 		    }
 		    else {
 			cat = Centers[center1].cat;
-			Vect_cat_set(Cats, 1, cat);
+
+			if (unique_cats) {
+			    Vect_cat_set(Cats, 1, ucat);
+			    for (n = 0; n < OCats->n_cats; n++) {
+				Vect_cat_set(Cats, 2, OCats->cat[n]);
+			    }
+			    ocat = -1;
+			    Vect_cat_get(ICats, afield, &ocat);
+
+			    sprintf(buf,
+				    "insert into %s values ( %d, %d, %d )",
+				    Fi->table, ucat, ocat, cat);
+			    db_set_string(&sql, buf);
+			    G_debug(3, "%s", db_get_string(&sql));
+
+			    if (db_execute_immediate(driver, &sql) != DB_OK) {
+				G_fatal_error(_("Cannot insert new record: %s"),
+					      db_get_string(&sql));
+			    }
+			    ucat++;
+			}
+			else
+			    Vect_cat_set(Cats, 1, cat);
+
 			Vect_write_line(&Out, ltype, SPoints, Cats);
 		    }
 
@@ -408,7 +629,30 @@ int main(int argc, char **argv)
 		    else {
 			Vect_reset_cats(Cats);
 			cat = Centers[center2].cat;
-			Vect_cat_set(Cats, 1, cat);
+
+			if (unique_cats) {
+			    Vect_cat_set(Cats, 1, ucat);
+			    for (n = 0; n < OCats->n_cats; n++) {
+				Vect_cat_set(Cats, 2, OCats->cat[n]);
+			    }
+			    ocat = -1;
+			    Vect_cat_get(ICats, afield, &ocat);
+
+			    sprintf(buf,
+				    "insert into %s values ( %d, %d, %d )",
+				    Fi->table, ucat, ocat, cat);
+			    db_set_string(&sql, buf);
+			    G_debug(3, "%s", db_get_string(&sql));
+
+			    if (db_execute_immediate(driver, &sql) != DB_OK) {
+				G_fatal_error(_("Cannot insert new record: %s"),
+					      db_get_string(&sql));
+			    }
+			    ucat++;
+			}
+			else
+			    Vect_cat_set(Cats, 1, cat);
+
 			Vect_write_line(&Out, ltype, SPoints, Cats);
 		    }
 		}
@@ -417,8 +661,35 @@ int main(int argc, char **argv)
 	else {
 	    /* arc is not reachable */
 	    G_debug(3, "  -> arc is not reachable");
+	    if (unique_cats) {
+		Vect_cat_set(Cats, 1, ucat);
+		for (n = 0; n < OCats->n_cats; n++) {
+		    Vect_cat_set(Cats, 2, OCats->cat[n]);
+		}
+		ocat = -1;
+		Vect_cat_get(ICats, afield, &ocat);
+
+		sprintf(buf,
+			"insert into %s values ( %d, %d, %d )",
+			Fi->table, ucat, ocat, -1);
+		db_set_string(&sql, buf);
+		G_debug(3, "%s", db_get_string(&sql));
+
+		if (db_execute_immediate(driver, &sql) != DB_OK) {
+		    G_fatal_error(_("Cannot insert new record: %s"),
+				  db_get_string(&sql));
+		}
+		ucat++;
+	    }
 	    Vect_write_line(&Out, ltype, Points, Cats);
 	}
+    }
+
+    if (unique_cats) {
+	db_commit_transaction(driver);
+	db_close_database_shutdown_driver(driver);
+
+	Vect_copy_table(&Map, &Out, afield, 2, NULL, GV_MTABLE);
     }
 
     Vect_build(&Out);

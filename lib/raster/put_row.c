@@ -194,7 +194,7 @@ static void put_fp_data(int fd, char *null_buf, const void *rast,
     if (n <= 0)
 	return;
 
-    work_buf = G_alloca(size + 1);
+    work_buf = G_malloc(size + 1);
 
     if (compressed)
 	set_file_pointer(fd, row);
@@ -209,7 +209,7 @@ static void put_fp_data(int fd, char *null_buf, const void *rast,
     else
 	write_data(fd, row, work_buf, n);
 
-    G_freea(work_buf);
+    G_free(work_buf);
 }
 
 static void convert_int(unsigned char *wk, char *null_buf, const CELL * rast,
@@ -340,7 +340,7 @@ static void put_data(int fd, char *null_buf, const CELL * cell,
     if (n <= 0)
 	return;
 
-    work_buf = G_alloca(fcb->cellhd.cols * sizeof(CELL) + 1);
+    work_buf = G_malloc(fcb->cellhd.cols * sizeof(CELL) + 1);
     wk = work_buf;
 
     if (compressed)
@@ -352,7 +352,6 @@ static void put_data(int fd, char *null_buf, const CELL * cell,
     convert_int(wk, null_buf, cell, n, len, zeros_r_nulls);
 
     if (compressed) {
-	unsigned char *wk = work_buf + 1;
 	int nbytes = count_bytes(wk, n, len);
 	unsigned char *compressed_buf;
 	int total;
@@ -365,7 +364,7 @@ static void put_data(int fd, char *null_buf, const CELL * cell,
 	    trim_bytes(wk, n, len, len - nbytes);
 
 	total = nbytes * n;
-	compressed_buf = G_alloca(total + 1);
+	compressed_buf = G_malloc(total + 1);
 
 	compressed_buf[0] = work_buf[0] = nbytes;
 
@@ -394,7 +393,7 @@ static void put_data(int fd, char *null_buf, const CELL * cell,
 			      row, fcb->name);
 	}
 
-	G_freea(compressed_buf);
+	G_free(compressed_buf);
     }
     else {
 	nwrite = fcb->nbytes * n;
@@ -404,7 +403,7 @@ static void put_data(int fd, char *null_buf, const CELL * cell,
 			  row, fcb->name);
     }
 
-    G_freea(work_buf);
+    G_free(work_buf);
 }
 
 static void put_data_gdal(int fd, const void *rast, int row, int n,
@@ -426,8 +425,9 @@ static void put_data_gdal(int fd, const void *rast, int row, int n,
     if (n <= 0)
 	return;
 
-    work_buf = G_alloca(n * size);
+    work_buf = G_malloc(n * size);
 
+    datatype = GDT_Unknown;
     switch (map_type) {
     case CELL_TYPE:
 	datatype = GDT_Int32;
@@ -456,7 +456,7 @@ static void put_data_gdal(int fd, const void *rast, int row, int n,
     err = Rast_gdal_raster_IO(fcb->gdal->band, GF_Write, 0, row, n, 1,
 			      work_buf, n, 1, datatype, 0, 0);
 
-    G_freea(work_buf);
+    G_free(work_buf);
 
     if (err != CE_None)
 	G_fatal_error(_("Error writing data via GDAL for row %d of <%s>"),
@@ -503,7 +503,7 @@ static void write_null_bits_compressed(const unsigned char *flags,
 
     fcb->null_row_ptr[row] = lseek(fcb->null_fd, 0L, SEEK_CUR);
 
-    compressed_buf = G_alloca(size + 1);
+    compressed_buf = G_malloc(size + 1);
 
     /* compress null bits file with LZ4, see lib/gis/compress.h */
     nwrite = G_lz4_compress(flags, size, compressed_buf, size);
@@ -519,7 +519,7 @@ static void write_null_bits_compressed(const unsigned char *flags,
 			  row, fcb->name);
     }
 
-    G_freea(compressed_buf);
+    G_free(compressed_buf);
 }
 
 /*!
@@ -693,7 +693,7 @@ static void put_raster_row(int fd, const void *buf, RASTER_MAP_TYPE data_type,
 	return;
     }
 
-    null_buf = G_alloca(fcb->cellhd.cols);
+    null_buf = G_malloc(fcb->cellhd.cols);
     G_zero(null_buf, fcb->cellhd.cols);
 
     put_raster_data(fd, null_buf, buf, fcb->cur_row, fcb->cellhd.cols,
@@ -716,5 +716,5 @@ static void put_raster_row(int fd, const void *buf, RASTER_MAP_TYPE data_type,
     if (!fcb->gdal)
 	put_null_value_row(fd, null_buf);
 
-    G_freea(null_buf);
+    G_free(null_buf);
 }

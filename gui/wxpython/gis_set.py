@@ -197,6 +197,10 @@ class GRASSStartup(wx.Frame):
                                              # GTC Delete location
                                              label=_("De&lete"))
         self.delete_location_button.SetToolTip(_("Delete selected location"))
+        self.download_location_button = Button(parent=self.location_panel, id=wx.ID_ANY,
+                                             label=_("Do&wnload"))
+        self.download_location_button.SetToolTip(_("Download sample location"))
+
         self.rename_mapset_button = Button(parent=self.mapset_panel, id=wx.ID_ANY,
                                            # GTC Rename mapset
                                            label=_("&Rename"))
@@ -238,6 +242,7 @@ class GRASSStartup(wx.Frame):
 
         self.rename_location_button.Bind(wx.EVT_BUTTON, self.RenameLocation)
         self.delete_location_button.Bind(wx.EVT_BUTTON, self.DeleteLocation)
+        self.download_location_button.Bind(wx.EVT_BUTTON, self.DownloadLocation)
         self.rename_mapset_button.Bind(wx.EVT_BUTTON, self.RenameMapset)
         self.delete_mapset_button.Bind(wx.EVT_BUTTON, self.DeleteMapset)
 
@@ -389,7 +394,8 @@ class GRASSStartup(wx.Frame):
             panel=self.location_panel,
             list_box=self.lblocations,
             buttons=[self.bwizard, self.rename_location_button,
-                     self.delete_location_button],
+                     self.delete_location_button,
+                     self.download_location_button],
             description=self.llocation)
         mapset_boxsizer = layout_list_box(
             box=self.mapset_box,
@@ -521,6 +527,57 @@ class GRASSStartup(wx.Frame):
         else:
             return None
 
+    def SuggestDatabase(self):
+        """Suggest (set) possible GRASS Database value"""
+        # only if nothing is set (<UNKNOWN> comes from init script)
+        if self.GetRCValue("LOCATION_NAME") != "<UNKNOWN>":
+            return
+        home = os.path.expanduser('~')
+        # try some common directories for grassdata
+        # always assuming grassdata (lowercase)
+        # home for Linux
+        # Documents and My Documents for Windows
+        # potential translations (old Windows and some Linux)
+        # but ~ and ~/Documents should cover most of the cases
+        candidates = [
+            os.path.join(home, "grassdata"),
+            os.path.join(home, "Documents", "grassdata"),
+            os.path.join(home, "My Documents", "grassdata"),
+        ]
+        try:
+            # here goes everything which has potential unicode issues
+            candidates.append(os.path.join(home, _("Documents"), "grassdata"))
+            candidates.append(os.path.join(home, _("My Documents"), "grassdata"))
+        except UnicodeDecodeError:
+            # just ignore the errors if it doesn't work
+            pass
+        path = None
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                path = candidate
+        if path:
+            try:
+                self.tgisdbase.SetValue(path)
+            except UnicodeDecodeError:
+                # restore previous state
+                # wizard gives error in this case, we just ignore
+                path = None
+                self.tgisdbase.SetValue(self.gisdbase)
+            # if we still have path
+            if path:
+                self.gisdbase = path
+                self.OnSetDatabase(None)
+        else:
+            # nothing found
+            # TODO: should it be warning, hint or message?
+            self._showWarning(_(
+                'GRASS needs a directory (GRASS database) '
+                'in which to store its data. '
+                'Create one now if you have not already done so. '
+                'A popular choice is "grassdata", located in '
+                'your home directory. '
+                'Press Browse button to select the directory.'))
+
     def OnWizard(self, event):
         """Location wizard started"""
         from location_wizard.wizard import LocationWizard
@@ -580,7 +637,7 @@ class GRASSStartup(wx.Frame):
 
         wx.BeginBusyCursor()
         wx.Yield()
-        if mapName in vectors:
+        if vectors:
             # vector detected
             returncode, error = RunCommand(
                 'v.in.ogr', input=filePath, output=mapName, flags='e',
@@ -764,6 +821,26 @@ class GRASSStartup(wx.Frame):
                 wx.MessageBox(message=_('Unable to delete location'))
 
         dlg.Destroy()
+
+    def DownloadLocation(self, event):
+        """Download location online"""
+        from startup.locdownload import LocationDownloadDialog
+
+        loc_download = LocationDownloadDialog(parent=self, database=self.gisdbase)
+        loc_download.ShowModal()
+        location = loc_download.GetLocation()
+        if location:
+            # get the new location to the list
+            self.UpdateLocations(self.gisdbase)
+            # seems to be used in similar context
+            self.UpdateMapsets(os.path.join(self.gisdbase, location))
+            self.lblocations.SetSelection(
+                self.listOfLocations.index(location))
+            # wizard does this as well, not sure if needed
+            self.SetLocation(self.gisdbase, location, 'PERMANENT')
+            # seems to be used in similar context
+            self.OnSelectLocation(None)
+        loc_download.Destroy()
 
     def UpdateLocations(self, dbase):
         """Update list of locations"""
@@ -1160,20 +1237,7 @@ class StartUp(wx.App):
         StartUp.CenterOnScreen()
         self.SetTopWindow(StartUp)
         StartUp.Show()
-
-        if StartUp.GetRCValue("LOCATION_NAME") == "<UNKNOWN>":
-            # TODO: This is not ideal, either it should be checked elsewhere
-            # where other checks are performed or it should use some public
-            # API. There is no reason for not exposing it.
-            # TODO: another question is what should be warning, hint or message
-            StartUp._showWarning(
-                _(
-                    'GRASS needs a directory (GRASS database) '
-                    'in which to store its data. '
-                    'Create one now if you have not already done so. '
-                    'A popular choice is "grassdata", located in '
-                    'your home directory. '
-                    'Press Browse button to select the directory.'))
+        StartUp.SuggestDatabase()
 
         return 1
 

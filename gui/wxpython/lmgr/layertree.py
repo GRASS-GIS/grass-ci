@@ -22,7 +22,7 @@ try:
     import wx.lib.agw.customtreectrl as CT
 except ImportError:
     import wx.lib.customtreectrl as CT
-import wx.lib.buttons as buttons
+
 try:
     import treemixin
 except ImportError:
@@ -47,7 +47,7 @@ from core.gcmd import GWarning, GError, RunCommand
 from icons.icon import MetaIcon
 from web_services.dialogs import SaveWMSLayerDialog
 from gui_core.widgets import MapValidator
-from gui_core.wrap import Menu
+from gui_core.wrap import Menu, GenBitmapButton
 from lmgr.giface import LayerManagerGrassInterfaceForMapDisplay
 from core.giface import Notification
 
@@ -202,7 +202,9 @@ class LayerTree(treemixin.DragAndDrop, CT.CustomTreeCtrl):
                                    lmgr=self.lmgr, page=self.treepg,
                                    Map=self.Map)
 
-        self.mapdisplay.SetTitleNumber(self.displayIndex + 1)
+        # here (with initial auto-generated names) we use just the
+        # number, not the whole name for simplicity
+        self.mapdisplay.SetTitleWithName(self.displayIndex + 1)
 
         # show new display
         if showMapDisplay is True:
@@ -410,6 +412,17 @@ class LayerTree(treemixin.DragAndDrop, CT.CustomTreeCtrl):
     def OnKeyDown(self, event):
         """Skip event, otherwise causing error when layertree is empty"""
         event.Skip()
+
+    def OnLayerContextMenuButton(self, event):
+        """Contextual menu for item/layer when button pressed"""
+        # determine which tree item has the button
+        button = event.GetEventObject()
+        layer = self.FindItemByWindow(button)
+        if layer:
+            # select the layer in the same way as right click
+            if not self.IsSelected(layer):
+                self.DoSelectItem(layer, True, False)
+            self.OnLayerContextMenu(event)
 
     def OnLayerContextMenu(self, event):
         """Contextual menu for item/layer"""
@@ -1336,10 +1349,10 @@ class LayerTree(treemixin.DragAndDrop, CT.CustomTreeCtrl):
             self.groupnode += 1
         else:
             btnbmp = LMIcons["layerOptions"].GetBitmap((16, 16))
-            ctrl = buttons.GenBitmapButton(
+            ctrl = GenBitmapButton(
                 self, id=wx.ID_ANY, bitmap=btnbmp, size=(24, 24))
-            ctrl.SetToolTipString(_("Click to edit layer settings"))
-            self.Bind(wx.EVT_BUTTON, self.OnLayerContextMenu, ctrl)
+            ctrl.SetToolTip(_("Click to edit layer settings"))
+            self.Bind(wx.EVT_BUTTON, self.OnLayerContextMenuButton, ctrl)
         # add layer to the layer tree
         if loadWorkspace:
             # when loading workspace, we always append
@@ -1885,10 +1898,10 @@ class LayerTree(treemixin.DragAndDrop, CT.CustomTreeCtrl):
         elif self.GetLayerInfo(dragItem, key='ctrl'):
             # recreate data layer
             btnbmp = LMIcons["layerOptions"].GetBitmap((16, 16))
-            newctrl = buttons.GenBitmapButton(
+            newctrl = GenBitmapButton(
                 self, id=wx.ID_ANY, bitmap=btnbmp, size=(24, 24))
-            newctrl.SetToolTipString(_("Click to edit layer settings"))
-            self.Bind(wx.EVT_BUTTON, self.OnLayerContextMenu, newctrl)
+            newctrl.SetToolTip(_("Click to edit layer settings"))
+            self.Bind(wx.EVT_BUTTON, self.OnLayerContextMenuButton, newctrl)
             data = self.GetPyData(dragItem)
 
         elif self.GetLayerInfo(dragItem, key='type') == 'group':
@@ -2171,6 +2184,21 @@ class LayerTree(treemixin.DragAndDrop, CT.CustomTreeCtrl):
 
             item = self.GetNextItem(item)
             i += 1
+
+        return None
+
+    def FindItemByWindow(self, window):
+        """Find item by window (button for context menu)
+
+        :return: window instance
+        :return: None not found
+        """
+        item = self.GetFirstChild(self.root)[0]
+        while item and item.IsOk():
+            if self.GetItemWindow(item) == window:
+                return item
+
+            item = self.GetNextItem(item)
 
         return None
 
