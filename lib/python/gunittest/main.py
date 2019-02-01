@@ -135,6 +135,11 @@ def main():
     parser.add_argument('--output', dest='output', action='store',
                         default='testreport',
                         help='Output directory')
+    parser.add_argument('--test_list_in',
+                        help='File to read tests from list')
+    parser.add_argument('--test_list_out',
+                        help='File to write all test paths to list')
+
     args = parser.parse_args()
     gisdbase = args.gisdbase
     if gisdbase is None:
@@ -171,7 +176,9 @@ def main():
     invoker.run_in_location(gisdbase=gisdbase,
                             location=location,
                             location_type=location_type,
-                            results_dir=results_dir)
+                            results_dir=results_dir,
+                            test_list_in=args.test_list_in,
+                            test_list_out=args.test_list_out)
     return 0
 
 if __name__ == '__main__':

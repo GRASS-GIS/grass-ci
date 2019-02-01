@@ -133,14 +133,27 @@ if [ "$COMPILE" = "yes" ] ; then
    make -j$GCCTHREADS
 fi
 
+RUNNER_ARGS=""
+
+# check if module tests should be read from list
+if [ "$READ_MODULE_TEST_LIST" = "yes" ] ; then
+    RUNNER_ARGS="$RUNNER_ARGS --test_list_in $TEST_LIST_IN"
+fi
+
+# check if module tests should be written to list
+if [ "$WRITE_MODULE_TEST_LIST" = "yes" ] ; then
+    RUNNER_ARGS="$RUNNER_ARGS --test_list_out $TEST_LIST_OUT"
+fi
+
 # run tests for the current source code
-cd $REPORTS/$CURRENT_REPORTS_DIR
+(cd $REPORTS/$CURRENT_REPORTS_DIR
 $PYTHON $GRASS_MULTI_RUNNER \
     --grassbin $GRASSBIN \
     --grasssrc $GRASSSRC \
     --grassdata $GRASSDATA \
     --location nc_spm_08_grass7 --location-type nc \
-    --location other_location --location-type other_type
+    --location other_location --location-type other_type \
+    $RUNNER_ARGS)
 
 # create overall report of all so far executed tests
 # the script depends on GRASS but just Python part is enough
@@ -158,4 +171,3 @@ fi
 echo "Nightly ($NOW) GRASS GIS test finished: $(date $DATE_FLAGS)" >> ${LOGFILE}
 
 exit 0
-
