@@ -30,6 +30,7 @@ sudo apt-get install --no-install-recommends \
     libxmu-dev \
     python \
     python-wxgtk3.0 \
+    python-six \
     python-dev \
     unixodbc-dev \
     libnetcdf-dev   \
@@ -38,4 +39,3 @@ sudo apt-get install --no-install-recommends \
     libblas-dev \
     liblapack-dev \
     python-numpy
-
