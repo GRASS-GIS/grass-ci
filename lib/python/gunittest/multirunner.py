@@ -83,9 +83,9 @@ def main():
                         help='Create also main report for all tests',
                         action="store_true", default=False, dest='main_report')
     parser.add_argument('--test_list_in',
-                        help='File to read tests from list')
+                        help='File to read tests from list', default='False')
     parser.add_argument('--test_list_out',
-                        help='File to write all test paths to list')
+                        help='File to write all test paths to list', default='False')
 
     args = parser.parse_args()
     gisdb = args.grassdata
@@ -149,8 +149,6 @@ def main():
         # including also type to make it unique and preserve it for sure
         report = 'report_for_' + location + '_' + location_type
         absreport = os.path.abspath(report)
-        # TODO before merge: this breaks if test_list_in or test_list_out is
-        # None (case when read/write option is set to "no" in config)
         p = subprocess.Popen([sys.executable, '-tt',
                               '-m', 'grass.gunittest.main',
                               '--grassdata', gisdb, '--location', location,
