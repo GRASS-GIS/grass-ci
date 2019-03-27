@@ -55,6 +55,7 @@ RUN apt-get update \
         python-pil \
         python-ply \
         python-requests \
+        python-six \
         sqlite3 \
         subversion \
         unixodbc-dev \
