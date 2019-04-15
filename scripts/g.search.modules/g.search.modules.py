@@ -265,11 +265,13 @@ def _basic_search(pattern, name, description, module_keywords):
     This lowercases the strings before searching in them, so the pattern
     string should be lowercased too.
     """
-    if name.lower().find(pattern) > -1 or\
-       description.lower().find(pattern) > -1 or\
-       module_keywords.lower().find(pattern) > -1:
-
-        return True
+    if (name and description and module_keywords):
+        if name.lower().find(pattern) > -1 or\
+           description.lower().find(pattern) > -1 or\
+           module_keywords.lower().find(pattern) > -1:
+           return True
+        else:
+            return False
     else:
         return False
 
