@@ -61,6 +61,7 @@
 #% description: JSON format
 #% guisection: Output
 #%end
+
 from __future__ import print_function
 import os
 import sys
@@ -198,6 +199,14 @@ def _search_module(keywords, logical_and=False, invert=False, manpages=False,
 
     items = menudata.findall('module-item')
 
+    # add installed addons to modules list
+    filename_addons = os.path.join(os.getenv("GRASS_ADDON_BASE"), 'modules.xml')
+    addon_menudata_file = open(filename_addons, 'r')
+    addon_menudata = etree.parse(addon_menudata_file)
+    addon_menudata_file.close()
+    addon_items = addon_menudata.findall('task')
+    items.extend(addon_items)
+
     found_modules = []
     for item in items:
         name = item.attrib['name']
@@ -246,7 +255,7 @@ def _search_module(keywords, logical_and=False, invert=False, manpages=False,
                 }
             })
 
-    return found_modules
+    return sorted(found_modules, key=lambda k: k['name'])
 
 
 def _basic_search(pattern, name, description, module_keywords):
