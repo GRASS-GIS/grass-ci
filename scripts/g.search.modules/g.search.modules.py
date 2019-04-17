@@ -202,11 +202,21 @@ def _search_module(keywords, logical_and=False, invert=False, manpages=False,
     # add installed addons to modules list
     if os.getenv("GRASS_ADDON_BASE"):
         filename_addons = os.path.join(os.getenv("GRASS_ADDON_BASE"), 'modules.xml')
-        addon_menudata_file = open(filename_addons, 'r')
-        addon_menudata = etree.parse(addon_menudata_file)
-        addon_menudata_file.close()
-        addon_items = addon_menudata.findall('task')
-        items.extend(addon_items)
+        if os.path.isfile(filename_addons):
+            addon_menudata_file = open(filename_addons, 'r')
+            addon_menudata = etree.parse(addon_menudata_file)
+            addon_menudata_file.close()
+            addon_items = addon_menudata.findall('task')
+            items.extend(addon_items)
+
+    # add sysem-wide installed addons to modules list
+    filename_addons_s = os.path.join(os.getenv("GISBASE"), 'modules.xml')
+    if os.path.isfile(filename_addons_s):
+        addon_menudata_file_s = open(filename_addons_s, 'r')
+        addon_menudata_s = etree.parse(addon_menudata_file_s)
+        addon_menudata_file_s.close()
+        addon_items_s = addon_menudata_s.findall('task')
+        items.extend(addon_items_s)
 
     found_modules = []
     for item in items:
@@ -228,7 +238,10 @@ def _search_module(keywords, logical_and=False, invert=False, manpages=False,
                 keyword_found = _basic_search(keyword, name, description,
                                               module_keywords)
 
-            if not keyword_found and manpages:
+            # metamodules (i.sentinel, r.modis, ...) do not have descriptions
+            # and keywords, but they also do not have a manpage
+            # TODO change the handling of metamules
+            if (description and module_keywords) and not keyword_found and manpages:
                 keyword_found = _manpage_search(keyword, name)
 
             if keyword_found:
