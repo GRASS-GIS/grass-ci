@@ -4,7 +4,7 @@
 # MODULE:	g.search.modules
 # AUTHOR(S):	Jachym Cepicky <jachym.cepicky gmail.com>
 # PURPOSE:	g.search.modules in grass modules using keywords
-# COPYRIGHT:	(C) 2015-2016 by the GRASS Development Team
+# COPYRIGHT:	(C) 2015-2019 by the GRASS Development Team
 #
 #		This program is free software under the GNU General
 #		Public License (>=v2). Read the file COPYING that
@@ -238,9 +238,9 @@ def _search_module(keywords, logical_and=False, invert=False, manpages=False,
                 keyword_found = _basic_search(keyword, name, description,
                                               module_keywords)
 
-            # metamodules (i.sentinel, r.modis, ...) do not have descriptions
-            # and keywords, but they also do not have a manpage
-            # TODO change the handling of metamules
+            # meta-modules (i.sentinel, r.modis, ...) do not have descriptions
+            # and keywords, but they have a manpage
+            # TODO change the handling of meta-modules
             if (description and module_keywords) and not keyword_found and manpages:
                 keyword_found = _manpage_search(keyword, name)
 
