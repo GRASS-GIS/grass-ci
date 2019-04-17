@@ -209,7 +209,7 @@ def _search_module(keywords, logical_and=False, invert=False, manpages=False,
             addon_items = addon_menudata.findall('task')
             items.extend(addon_items)
 
-    # add sysem-wide installed addons to modules list
+    # add system-wide installed addons to modules list
     filename_addons_s = os.path.join(os.getenv("GISBASE"), 'modules.xml')
     if os.path.isfile(filename_addons_s):
         addon_menudata_file_s = open(filename_addons_s, 'r')
