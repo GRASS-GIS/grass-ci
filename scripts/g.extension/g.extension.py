@@ -152,6 +152,7 @@ else:
 import grass.script as gscript
 from grass.script.utils import try_rmdir
 from grass.script import core as grass
+from grass.script import task as gtask
 
 # temp dir
 REMOVE_TMPDIR = True
@@ -671,8 +672,9 @@ def install_extension(source, url, xmlurl):
         if sys.platform == "win32":
             ret += install_extension_win(module)
         else:
-            ret += install_extension_std_platforms(module,
+            ret1, installed_modules, tmp_dir = install_extension_std_platforms(module,
                                                    source=source, url=url)
+            ret += ret1
         if len(mlist) > 1:
             print('-' * 60)
 
@@ -685,9 +687,19 @@ def install_extension(source, url, xmlurl):
     else:
         # for now it is reasonable to assume that only official source
         # will provide the metadata file
-        if source == 'official':
+        if source == 'official' and len(installed_modules) <= len(mlist):
             grass.message(_("Updating addons metadata file..."))
             blist = install_extension_xml(xmlurl, mlist)
+        if source == 'official' and len(installed_modules) > len(mlist):
+            grass.message(_("Updating addons metadata file..."))
+            blist = install_inofficial_extension_xml(tmp_dir, installed_modules)
+        else:
+            grass.message(_("Updating inofficial addons metadata file..."))
+            if len(installed_modules) > 1:
+                blist = install_inofficial_extension_xml(tmp_dir, installed_modules)
+            else:
+                blist = install_inofficial_extension_xml(tmp_dir, mlist)
+
         # the blist was used here, but it seems that it is the same as mlist
         for module in mlist:
             update_manual_page(module)
@@ -910,6 +922,87 @@ def install_extension_xml(url, mlist):
     write_xml_modules(xml_file, tree)
 
     return bin_list
+
+
+def install_inofficial_extension_xml(url, mlist):
+    """Update XML files with metadata about installed modules and toolbox
+    of an inofficial addon
+
+    """
+    # TODO toolbox
+    # if len(mlist) > 1:
+    #     # read metadata from remote server (toolboxes)
+    #     install_toolbox_xml(url, options['extension'])
+
+    xml_file = os.path.join(options['prefix'], 'modules.xml')
+    # create an empty file if not exists
+    if not os.path.exists(xml_file):
+        write_xml_modules(xml_file)
+
+    # read XML file
+    tree = etree_fromfile(xml_file)
+
+    # update tree
+    for name in mlist:
+
+        try:
+            desc = gtask.parse_interface(name).description
+            # mname = gtask.parse_interface(name).name
+            keywords = gtask.parse_interface(name).keywords
+        except Exception as e:
+            grass.warning(_("No addons metadata available."
+                            " Addons metadata file not updated."))
+            return []
+
+        tnode = None
+        for node in tree.findall('task'):
+            if node.get('name') == name:
+                tnode = node
+                break
+
+        # create new node for task
+        tnode = etree.Element('task', attrib={'name': name})
+        dnode = etree.Element('description')
+        dnode.text = desc
+        tnode.append(dnode)
+        knode = etree.Element('keywords')
+        knode.text = (',').join(keywords)
+        tnode.append(knode)
+
+        # create binary
+        bnode = etree.Element('binary')
+        list_of_binary_files = []
+        for file_name in os.listdir(url):
+            file_type = os.path.splitext(file_name)[-1]
+            file_n = os.path.splitext(file_name)[0]
+            html_path = os.path.join(options['prefix'], 'docs', 'html')
+            c_path = os.path.join(options['prefix'], 'bin')
+            py_path = os.path.join(options['prefix'], 'scripts')
+            # html or image file
+            if file_type in ['.html', '.jpg', '.png'] \
+                    and file_n in os.listdir(html_path):
+                list_of_binary_files.append(os.path.join(html_path, file_name))
+            # c file
+            elif file_type in ['.c'] and file_name in os.listdir(c_path):
+                list_of_binary_files.append(os.path.join(c_path, file_n))
+            # python file
+            elif file_type in ['.py'] and file_name in os.listdir(py_path):
+                list_of_binary_files.append(os.path.join(py_path, file_n))
+        # man file
+        man_path = os.path.join(options['prefix'], 'docs', 'man', 'man1')
+        if name + '.1' in os.listdir(man_path):
+            list_of_binary_files.append(os.path.join(man_path, name + '.1'))
+        # add binaries to xml file
+        for binary_file_name in list_of_binary_files:
+            fnode = etree.Element('file')
+            fnode.text = binary_file_name
+            bnode.append(fnode)
+        tnode.append(bnode)
+        tree.append(tnode)
+
+    write_xml_modules(xml_file, tree)
+
+    return mlist
 
 
 def install_extension_win(name):
@@ -1207,8 +1300,29 @@ def install_extension_std_platforms(name, source, url):
 
     grass.message(_("Installing..."))
 
-    return grass.call(install_cmd,
-                      stdout=outdev)
+
+    with open(os.path.join(TMPDIR, name, 'Makefile')) as f:
+        datafile = f.readlines()
+
+    makefile_part = ""
+    next_line = False
+    for line in datafile:
+        if 'SUBDIRS' in line or next_line:
+            makefile_part += line
+            if (line.strip()).endswith('\\'):
+                next_line = True
+            else:
+                next_line = False
+
+    modules = makefile_part.replace('SUBDIRS', '').replace('=', '').replace('\\', '').strip().split('\n')
+    c_path = os.path.join(options['prefix'], 'bin')
+    py_path = os.path.join(options['prefix'], 'scripts')
+
+    all_modules = os.listdir(c_path)
+    all_modules.extend(os.listdir(py_path))
+    module_list = [x.strip() for x in modules if x.strip() in all_modules]
+
+    return grass.call(install_cmd, stdout=outdev), module_list, os.path.join(TMPDIR, name)
 
 
 def remove_extension(force=False):
