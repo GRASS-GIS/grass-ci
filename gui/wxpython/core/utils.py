@@ -28,7 +28,7 @@ from grass.exceptions import OpenError
 
 from core.gcmd import RunCommand
 from core.debug import Debug
-from core.globalvar import ETCDIR, wxPythonPhoenix, _
+from core.globalvar import ETCDIR, wxPythonPhoenix
 
 def cmp(a, b):
     """cmp function"""
@@ -509,44 +509,20 @@ def PathJoin(*args):
     return path
 
 
-def ReadEpsgCodes(path):
-    """Read EPSG code from the file
-
-    :param path: full path to the file with EPSG codes
-
-    Raise OpenError on failure.
+def ReadEpsgCodes():
+    """Read EPSG codes with g.proj
 
     :return: dictionary of EPSG code
     """
     epsgCodeDict = dict()
-    try:
-        try:
-            f = open(path, "r")
-        except IOError:
-            raise OpenError(_("failed to open '{0}'").format(path))
 
-        code = None
-        for line in f.readlines():
-            line = line.strip()
-            if len(line) < 1 or line.startswith('<metadata>'):
-                continue
+    ret = RunCommand('g.proj',
+                     read=True,
+                     list_codes="EPSG")
 
-            if line[0] == '#':
-                descr = line[1:].strip()
-            elif line[0] == '<':
-                code, params = line.split(" ", 1)
-                try:
-                    code = int(code.replace('<', '').replace('>', ''))
-                except ValueError as e:
-                    raise OpenError('{0}'.format(e))
-
-            if code is not None:
-                epsgCodeDict[code] = (descr, params)
-                code = None
-
-        f.close()
-    except Exception as e:
-        raise OpenError('{0}'.format(e))
+    for line in ret.splitlines():
+        code, descr, params = line.split("|")
+        epsgCodeDict[int(code)] = (descr, params)
 
     return epsgCodeDict
 
@@ -791,33 +767,35 @@ rasterFormatExtension = {
     'Northwood Classified Grid Format .grc/.tab': '',
     'ARC Digitized Raster Graphics': 'arc',
     'Magellan topo (.blx)': 'blx',
-    'SAGA GIS Binary Grid (.sdat)': 'sdat'
+    'SAGA GIS Binary Grid (.sdat)': 'sdat',
+    'GeoPackage (.gpkg)': 'gpkg'
 }
 
 
 vectorFormatExtension = {
     'ESRI Shapefile': 'shp',
+    'GeoPackage': 'gpkg',
     'UK .NTF': 'ntf',
     'SDTS': 'ddf',
-            'DGN': 'dgn',
-            'VRT': 'vrt',
-            'REC': 'rec',
-            'BNA': 'bna',
-            'CSV': 'csv',
-            'GML': 'gml',
-            'GPX': 'gpx',
-            'KML': 'kml',
-            'GMT': 'gmt',
-            'PGeo': 'mdb',
-            'XPlane': 'dat',
-            'AVCBin': 'adf',
-            'AVCE00': 'e00',
-            'DXF': 'dxf',
-            'Geoconcept': 'gxt',
-            'GeoRSS': 'xml',
-            'GPSTrackMaker': 'gtm',
-            'VFK': 'vfk',
-            'SVG': 'svg',
+    'DGN': 'dgn',
+    'VRT': 'vrt',
+    'REC': 'rec',
+    'BNA': 'bna',
+    'CSV': 'csv',
+    'GML': 'gml',
+    'GPX': 'gpx',
+    'KML': 'kml',
+    'GMT': 'gmt',
+    'PGeo': 'mdb',
+    'XPlane': 'dat',
+    'AVCBin': 'adf',
+    'AVCE00': 'e00',
+    'DXF': 'dxf',
+    'Geoconcept': 'gxt',
+    'GeoRSS': 'xml',
+    'GPSTrackMaker': 'gtm',
+    'VFK': 'vfk',
+    'SVG': 'svg'
 }
 
 

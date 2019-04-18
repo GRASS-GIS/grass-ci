@@ -38,7 +38,7 @@ from gui_core.forms import GUI
 from mapdisp.frame import MapFrame
 from core.render import Map
 from wxplot.histogram import HistogramPlotFrame
-from core.utils import GetLayerNameFromCmd, ltype2command, _
+from core.utils import GetLayerNameFromCmd, ltype2command
 from wxplot.profile import ProfileFrame
 from core.debug import Debug
 from core.settings import UserSettings, GetDisplayVectSettings
@@ -204,7 +204,7 @@ class LayerTree(treemixin.DragAndDrop, CT.CustomTreeCtrl):
 
         # here (with initial auto-generated names) we use just the
         # number, not the whole name for simplicity
-        self.mapdisplay.SetTitleWithName(self.displayIndex + 1)
+        self.mapdisplay.SetTitleWithName(str(self.displayIndex + 1))
 
         # show new display
         if showMapDisplay is True:
@@ -2132,7 +2132,7 @@ class LayerTree(treemixin.DragAndDrop, CT.CustomTreeCtrl):
             layer=self.GetLayerInfo(
                 item,
                 key='maplayer'),
-            type=type,
+            ltype=type,
             command=cmdlist,
             name=layerName,
             active=chk,

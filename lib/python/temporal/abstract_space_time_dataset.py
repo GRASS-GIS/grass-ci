@@ -16,7 +16,6 @@ import uuid
 import os
 import copy
 from datetime import datetime
-import gettext
 from abc import ABCMeta, abstractmethod
 from .core import init_dbif, get_sql_template_path, get_tgis_metadata, get_current_mapset, \
     get_enable_mapset_check
@@ -1143,7 +1142,7 @@ class AbstractSpaceTimeDataset(AbstractDataset):
 
                 >>> import grass.temporal as tgis
                 >>> maps = []
-                >>> for i in xrange(3):
+                >>> for i in range(3):
                 ...     map = tgis.RasterDataset("map%i@PERMANENT"%i)
                 ...     check = map.set_relative_time(i + 2, i + 3, "days")
                 ...     maps.append(map)

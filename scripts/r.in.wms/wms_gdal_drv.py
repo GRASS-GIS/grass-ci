@@ -16,15 +16,11 @@ This program is free software under the GNU General Public License
 import os
 import grass.script as grass
 
-# i18N
-import gettext
-gettext.install('grassmods', os.path.join(os.getenv("GISBASE"), 'locale'))
-
 try:
     from osgeo import gdal
     from osgeo import gdalconst
 except:
-    grass.fatal(_("Unable to load GDAL Python bindings"))
+    grass.fatal(_("Unable to load GDAL Python bindings (requires package 'python-gdal' being installed)"))
 
 import xml.etree.ElementTree as etree
 

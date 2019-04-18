@@ -41,7 +41,6 @@ except ImportError as e:
                         '(python-matplotlib) package to be installed. {0}').format(e))
 
 import grass.script as grass
-from core.utils import _
 
 import grass.temporal as tgis
 from core.gcmd import GError, GException, RunCommand
@@ -286,7 +285,7 @@ class TimelineFrame(wx.Frame):
             startY = self.timeData[name]['south']
             dY = self.timeData[name]['north'] - np.array(startY)
 
-            color = colors.next()
+            color = next(colors)
             plots.append(self.axes3d.bar3d(startX, startY, startZ, dX, dY, dZ,
                                            color=color, alpha=ALPHA))
 
@@ -334,9 +333,9 @@ class TimelineFrame(wx.Frame):
             # TODO: mixed
             if mapType == 'interval':
                 end = convert(self.timeData[name]['end_datetime'])
-                lookUpData = zip(start, end)
+                lookUpData = list(zip(start, end))
                 duration = end - np.array(start)
-                barData = zip(start, duration)
+                barData = list(zip(start, duration))
                 lookUp.AddDataset(type_='bar', yrange=(i - 0.1, i + 0.1),
                                   xranges=lookUpData, datasetName=name)
 
@@ -348,7 +347,7 @@ class TimelineFrame(wx.Frame):
                     yrange=i,
                     xranges=pointData,
                     datasetName=name)
-            color = colors.next()
+            color = next(colors)
             if mapType == 'interval':
                 plots.append(
                     self.axes2d.broken_barh(

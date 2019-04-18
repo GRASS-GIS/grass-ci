@@ -268,7 +268,7 @@ LOC_ARG_WITH(pthread, POSIX threads, no)
 LOC_ARG_WITH(openmp, OpenMP, no)
 LOC_ARG_WITH(opencl, OpenCL, no)
 LOC_ARG_WITH(bzlib, BZIP2, no)
-LOC_ARG_WITH(zstd, Zstandard, no)
+LOC_ARG_WITH(zstd, Zstandard)
 
 AC_ARG_WITH(gdal,
 [  --with-gdal[=path/gdal-config]
@@ -750,13 +750,6 @@ fi
 AC_SUBST(PROJINC)
 AC_SUBST(PROJLIB)
 AC_SUBST(PROJSHARE)
-
-# nad2bin needs to be in path for installing datum gridshift files
-
-AC_PATH_PROG(NAD2BIN, nad2bin, no)
-if test "$NAD2BIN" = "no"; then
-    AC_MSG_ERROR([*** Unable to locate nad2bin (needs to be in PATH).])
-fi
 
 # Done checking PROJ
 

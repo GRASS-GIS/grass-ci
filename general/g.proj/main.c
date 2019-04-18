@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
 	*ingeo,			/* Input geo-referenced file readable by 
 				 * GDAL or OGR                              */
 #endif
+	*listcodes,		/* list codes of given authority */
 	*datum,			/* datum to add (or replace existing datum) */
 	*dtrans;		/* index to datum transform option          */
     struct GModule *module;
@@ -159,6 +160,14 @@ int main(int argc, char *argv[])
     inepsg->description = _("EPSG projection code");
 #endif
 
+    listcodes = G_define_option();
+    listcodes->key = "list_codes";
+    listcodes->type = TYPE_STRING;
+    listcodes->required = NO;
+    listcodes->options = get_authority_names();
+    listcodes->guisection = _("Print");
+    listcodes->description = _("List codes for given authority, e.g. EPSG, and exit");
+
     datum = G_define_option();
     datum->key = "datum";
     datum->type = TYPE_STRING;
@@ -206,6 +215,12 @@ int main(int argc, char *argv[])
 
 
     /* Initialisation & Validation */
+
+    /* list codes for given authority */
+    if (listcodes->answer) {
+	list_codes(listcodes->answer);
+	exit(EXIT_SUCCESS);
+    }
 
 #ifdef HAVE_OGR
     /* -e implies -w */

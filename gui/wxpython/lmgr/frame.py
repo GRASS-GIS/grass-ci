@@ -46,7 +46,7 @@ from grass.script.utils import decode
 
 from core.gcmd import RunCommand, GError, GMessage, EncodeString
 from core.settings import UserSettings, GetDisplayVectSettings
-from core.utils import SetAddOnPath, GetLayerNameFromCmd, command2ltype, _
+from core.utils import SetAddOnPath, GetLayerNameFromCmd, command2ltype
 from gui_core.preferences import MapsetAccess, PreferencesDialog
 from lmgr.layertree import LayerTree, LMIcons
 from lmgr.menudata import LayerManagerMenuData, LayerManagerModuleTree
@@ -65,7 +65,7 @@ from lmgr.pyshell import PyShellWindow
 from lmgr.giface import LayerManagerGrassInterface
 from datacatalog.catalog import DataCatalog
 from gui_core.forms import GUI
-from gui_core.wrap import Menu
+from gui_core.wrap import Menu, TextEntryDialog
 
 
 class GMFrame(wx.Frame):
@@ -1117,7 +1117,7 @@ class GMFrame(wx.Frame):
             # renamed (it just uses the numbers)
             dispId = 1
             for display in self.GetMapDisplay(onlyCurrent=False):
-                display.SetTitleWithName(dispId)  # TODO: signal ?
+                display.SetTitleWithName(str(dispId))  # TODO: signal ?
                 dispId += 1
 
     def OnChangeCWD(self, event=None, cmd=None):
@@ -1707,7 +1707,7 @@ class GMFrame(wx.Frame):
             return False
 
         try:
-            mfile = open(filename, "w")
+            mfile = open(filename, "wb")
             tmpfile.seek(0)
             for line in tmpfile.readlines():
                 mfile.write(line)
@@ -1757,10 +1757,10 @@ class GMFrame(wx.Frame):
     def OnRenameDisplay(self, event):
         """Change Map Display name"""
         name = self.notebookLayers.GetPageText(self.currentPageNum)
-        dlg = wx.TextEntryDialog(
+        dlg = TextEntryDialog(
             self, message=_("Enter new name:"),
             caption=_("Rename Map Display"),
-            defaultValue=name)
+            value=name)
         if dlg.ShowModal() == wx.ID_OK:
             name = dlg.GetValue()
             self.notebookLayers.SetPageText(

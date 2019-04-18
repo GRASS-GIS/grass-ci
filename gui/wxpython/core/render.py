@@ -39,7 +39,6 @@ from grass.pydispatch.signal import Signal
 from grass.exceptions import CalledModuleError
 
 from core import utils
-from core.utils import _
 from core.ws import RenderWMSMgr
 from core.gcmd import GException, GError, RunCommand, EncodeString
 from core.debug import Debug
@@ -415,6 +414,8 @@ class RenderLayerMgr(wx.EvtHandler):
         env_cmd.update(self._render_env)
         env_cmd['GRASS_RENDER_FILE'] = self.layer.mapfile
         if self.layer.GetType() in ('vector', 'thememap'):
+            if not self.layer._legrow:
+                self.layer._legrow = grass.tempfile(create=True)
             if os.path.isfile(self.layer._legrow):
                 os.remove(self.layer._legrow)
             env_cmd['GRASS_LEGEND_FILE'] = text_to_string(self.layer._legrow)

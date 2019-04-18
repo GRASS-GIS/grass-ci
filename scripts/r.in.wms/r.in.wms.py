@@ -13,10 +13,12 @@ This program is free software under the GNU General Public License
 """
 
 #%module
-#% description: Downloads and imports data from WMS/WMTS/NASA OnEarth server.
+#% description: Downloads and imports data from OGC WMS and OGC WMTS web mapping servers.
 #% keyword: raster
 #% keyword: import
 #% keyword: OGC web services
+#% keyword: OGC WMS
+#% keyword: OGC WMTS
 #%end
 
 #%option
@@ -168,6 +170,12 @@ This program is free software under the GNU General Public License
 #% guisection: Map style
 #%end
 
+#%flag
+#% key: b
+#% description: Keep original bands (default: create composite)
+#% guisection: Map style
+#%end
+
 #%rules
 #% exclusive: capfile_output, capfile
 #%end
@@ -178,10 +186,6 @@ sys.path.insert(1, os.path.join(os.path.dirname(sys.path[0]), 'etc', 'r.in.wms')
 
 import grass.script as grass
 from grass.script.utils import decode
-
-# i18N
-import gettext
-gettext.install('grassmods', os.path.join(os.getenv("GISBASE"), 'locale'))
 
 
 def GetRegionParams(opt_region):
@@ -230,7 +234,7 @@ def main():
         if not fetched_map:
             grass.warning(_("Nothing to import.\nNo data has been downloaded from wms server."))
             return
-        importer = GRASSImporter(options['output'])
+        importer = GRASSImporter(options['output'], (flags['b'] == False))
         importer.ImportMapIntoGRASS(fetched_map)
 
     return 0

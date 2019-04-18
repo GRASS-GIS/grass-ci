@@ -29,11 +29,12 @@ from .checkers import (check_text_ellipsis,
 from .utils import safe_repr
 from .gutils import is_map_in_mapset
 
-
-if sys.version_info[0] == 2:
-    import StringIO
+pyversion = sys.version_info[0]
+if pyversion == 2:
+    from StringIO import StringIO
 else:
     from io import StringIO
+    unicode = str
 
 
 class TestCase(unittest.TestCase):
@@ -168,6 +169,14 @@ class TestCase(unittest.TestCase):
             If you need to test the actual newline characters, use the standard
             string comparison and functions such as ``find()``.
         """
+        # SimpleModule delivers bytes for stderr and stdout
+        # Instead of decoding stdout and stderr in every test, decoding
+        # is done here
+        if pyversion >= 3:
+            if isinstance(first, bytes):
+                first = decode(first)
+            if isinstance(second, bytes):
+                second = decode(second)
         if os.linesep != '\n':
             if os.linesep in first:
                 first = first.replace(os.linesep, '\n')
@@ -184,6 +193,12 @@ class TestCase(unittest.TestCase):
 
         See :func:`check_text_ellipsis` for details of behavior.
         """
+        # SimpleModule delivers bytes for stderr and stdout
+        # Instead of decoding stdout and stderr in every test, decoding
+        # is done here
+        if pyversion >= 3:
+            if isinstance(actual, bytes):
+                actual = decode(actual)
         self.assertTrue(isinstance(actual, str), (
                         'actual argument is not a string'))
         self.assertTrue(isinstance(reference, str), (
@@ -403,6 +418,12 @@ class TestCase(unittest.TestCase):
         This function does not test geometry itself just the region of the
         vector map and number of features.
         """
+        # SimpleModule delivers bytes for stderr and stdout
+        # Instead of decoding stdout and stderr in every test, decoding
+        # is done here
+        if pyversion >= 3:
+            if isinstance(actual, bytes):
+                actual = decode(actual)
         module = SimpleModule('v.info', flags='t', map=reference)
         self.runModule(module)
         ref_topo = text_to_keyvalue(decode(module.outputs.stdout), sep='=')
@@ -675,13 +696,15 @@ class TestCase(unittest.TestCase):
         """
         diff = self._get_unique_name('compute_difference_raster_' + name_part
                                      + '_' + first + '_minus_' + second)
-        call_module('r.mapcalc',
-                    stdin='"{d}" = "{f}" - "{s}"'.format(d=diff,
-                                                         f=first,
-                                                         s=second))
+        expression = '"{diff}" = "{first}" - "{second}"'.format(
+            diff=diff,
+            first=first,
+            second=second
+        )
+        call_module('r.mapcalc', stdin=expression.encode("utf-8"))
         return diff
 
-    # TODO: name of map generation is repeted three times
+    # TODO: name of map generation is repeated three times
     # TODO: this method is almost the same as the one for 2D
     def _compute_difference_raster3d(self, first, second, name_part):
         """Compute difference of two rasters (first - second)
@@ -1022,7 +1045,7 @@ class TestCase(unittest.TestCase):
         stdmsg = ("There is a difference between vectors when compared as"
                   " ASCII files.\n")
 
-        output = StringIO.StringIO()
+        output = StringIO()
         # TODO: there is a diff size constant which we can use
         # we are setting it unlimited but we can just set it large
         maxlines = 100
@@ -1149,8 +1172,8 @@ class TestCase(unittest.TestCase):
             module.run()
             self.grass_modules.append(module.name)
         except CalledModuleError:
-            print(module.outputs.stdout)
-            print(module.outputs.stderr)
+            print(decode(module.outputs.stdout))
+            print(decode(module.outputs.stderr))
             # TODO: message format
             # TODO: stderr?
             stdmsg = ('Running <{m.name}> module ended'
@@ -1162,8 +1185,8 @@ class TestCase(unittest.TestCase):
                           errors=decode(module.outputs.stderr)
                       ))
             self.fail(self._formatMessage(msg, stdmsg))
-        print(module.outputs.stdout)
-        print(module.outputs.stderr)
+        print(decode(module.outputs.stdout))
+        print(decode(module.outputs.stderr))
         # log these to final report
         # TODO: always or only if the calling test method failed?
         # in any case, this must be done before self.fail()
@@ -1183,11 +1206,11 @@ class TestCase(unittest.TestCase):
             module.run()
             self.grass_modules.append(module.name)
         except CalledModuleError:
-            print(module.outputs.stdout)
-            print(module.outputs.stderr)
+            print(decode(module.outputs.stdout))
+            print(decode(module.outputs.stderr))
         else:
-            print(module.outputs.stdout)
-            print(module.outputs.stderr)
+            print(decode(module.outputs.stdout))
+            print(decode(module.outputs.stderr))
             stdmsg = ('Running <%s> ended with zero (successful) return code'
                       ' when expecting module to fail' % module.get_python())
             self.fail(self._formatMessage(msg, stdmsg))

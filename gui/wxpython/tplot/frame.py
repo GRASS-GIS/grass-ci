@@ -27,7 +27,6 @@ import wx
 from grass.pygrass.modules import Module
 
 import grass.script as grass
-from core.utils import _
 from functools import reduce
 
 try:
@@ -45,7 +44,6 @@ except ImportError as e:
     raise ImportError(_('The Temporal Plot Tool needs the "matplotlib" '
                         '(python-matplotlib) package to be installed. {0}').format(e))
 
-from core.utils import _
 
 import grass.temporal as tgis
 from core.gcmd import GMessage, GError, GException, RunCommand
@@ -650,9 +648,9 @@ class TplotFrame(wx.Frame):
         """Used to write CSV file of plotted data"""
         import csv
         if isinstance(y[0], list):
-            zipped = zip(x, *y)
+            zipped = list(zip(x, *y))
         else:
-            zipped = zip(x, y)
+            zipped = list(zip(x, y))
         with open(self.csvpath, "wb") as fi:
             writer = csv.writer(fi)
             if self.header:
@@ -686,7 +684,7 @@ class TplotFrame(wx.Frame):
                 return
             self.lookUp.AddDataset(yranges=ydata, xranges=xdata,
                                    datasetName=name)
-            color = self.colors.next()
+            color = next(self.colors)
             self.plots.append(self.axes2d.plot(xdata, ydata, marker='o',
                                                color=color,
                                                label=self.plotNameListR[i])[0])
@@ -733,7 +731,7 @@ class TplotFrame(wx.Frame):
                 continue
             self.lookUp.AddDataset(yranges=ydata, xranges=xdata,
                                    datasetName=name)
-            color = self.colors.next()
+            color = next(self.colors)
 
             self.plots.append(
                 self.axes2d.plot(
@@ -778,7 +776,7 @@ class TplotFrame(wx.Frame):
                 return
             self.lookUp.AddDataset(yranges=ydata, xranges=xdata,
                                    datasetName=name)
-            color = self.colors.next()
+            color = next(self.colors)
 
             self.plots.append(self.axes2d.plot(xdata, ydata, marker='o',
                                                color=color, label=name)[0])
@@ -1186,7 +1184,7 @@ class DataCursor(object):
                 x = xData[np.argmin(abs(xData - x))]
 
             info = self.lookUp.GetInformation(x)
-            ys = zip(*info[1].values())[1]
+            ys = list(zip(*info[1].values()))[1]
             if not info:
                 return
             # Update the annotation in the current axis..

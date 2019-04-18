@@ -14,6 +14,7 @@ sudo apt-get install --no-install-recommends \
     libfftw3-dev \
     libfreetype6-dev \
     libgdal-dev \
+    libzstd-dev \
     libgeos-dev \
     libglu1-mesa-dev \
     libjpeg-dev \
@@ -26,10 +27,10 @@ sudo apt-get install --no-install-recommends \
     proj-bin \
     libreadline-dev \
     libsqlite3-dev \
-    libwxgtk2.8-dev \
+    libwxgtk3.0-dev \
     libxmu-dev \
     python \
-    python-wxgtk2.8 \
+    python-wxgtk3.0 \
     python-dev \
     unixodbc-dev \
     libnetcdf-dev   \
@@ -38,3 +39,4 @@ sudo apt-get install --no-install-recommends \
     libblas-dev \
     liblapack-dev \
     python-numpy
+

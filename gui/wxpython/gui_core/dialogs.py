@@ -35,6 +35,11 @@ import six
 
 import wx
 
+try:
+    from wx.adv import HyperlinkCtrl
+except ImportError:
+    from wx import HyperlinkCtrl
+
 from grass.script import core as grass
 from grass.script.utils import natural_sort, try_remove
 
@@ -45,7 +50,6 @@ from core.gcmd import GError, RunCommand, GMessage
 from gui_core.gselect import LocationSelect, MapsetSelect, Select, \
     OgrTypeSelect, SubGroupSelect
 from gui_core.widgets import SingleSymbolPanel, GListCtrl, SimpleValidator, MapValidator
-from core.utils import _
 from core.settings import UserSettings
 from core.debug import Debug
 from gui_core.wrap import SpinCtrl, TextCtrl, Button, CheckListBox, \
@@ -2308,7 +2312,7 @@ class HyperlinkDialog(wx.Dialog):
             flag=wx.ALIGN_CENTRE | wx.ALL,
             border=10)
         hyperlinkLabel = hyperlinkLabel if hyperlinkLabel else hyperlink
-        hyperlinkCtrl = wx.HyperlinkCtrl(
+        hyperlinkCtrl = HyperlinkCtrl(
             self, id=wx.ID_ANY, label=hyperlinkLabel, url=hyperlink,
             style=wx.HL_ALIGN_LEFT | wx.HL_CONTEXTMENU)
         sizer.Add(

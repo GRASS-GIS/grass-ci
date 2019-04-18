@@ -29,6 +29,10 @@ import datetime
 import wx.lib.filebrowsebutton as filebrowse
 import wx.lib.scrolledpanel as SP
 import wx.lib.colourselect as csel
+try:
+    from wx.adv import HyperlinkCtrl
+except ImportError:
+    from wx import HyperlinkCtrl
 
 from core.gcmd import GMessage, GError, GException
 from core import globalvar
@@ -36,7 +40,6 @@ from gui_core.dialogs import MapLayersDialog, GetImageHandlers
 from gui_core.preferences import PreferencesBaseDialog
 from gui_core.forms import GUI
 from core.settings import UserSettings
-from core.utils import _
 from gui_core.gselect import Select
 from gui_core.widgets import FloatValidator
 from gui_core.wrap import SpinCtrl, CheckBox, TextCtrl, Button, \
@@ -736,9 +739,13 @@ class InputDialog(wx.Dialog):
             self.animationData.endRegion = None
             self.animationData.zoomRegionValue = None
 
+    def UnInit(self):
+        self.simpleLmgr.UnInit()
+
     def OnOk(self, event):
         try:
             self._update()
+            self.UnInit()
             self.EndModal(wx.ID_OK)
         except (GException, ValueError, IOError) as e:
             GError(
@@ -848,6 +855,7 @@ class EditDialog(wx.Dialog):
         dlg = InputDialog(parent=self, mode='add', animationData=animData)
         dlg.CenterOnParent()
         if dlg.ShowModal() == wx.ID_CANCEL:
+            dlg.UnInit()
             dlg.Destroy()
             return
         dlg.Destroy()
@@ -864,6 +872,7 @@ class EditDialog(wx.Dialog):
         dlg = InputDialog(parent=self, mode='edit', animationData=animData)
         dlg.CenterOnParent()
         if dlg.ShowModal() == wx.ID_CANCEL:
+            dlg.UnInit()
             dlg.Destroy()
             return
         dlg.Destroy()
@@ -2007,7 +2016,7 @@ class PreferencesDialog(PreferencesBaseDialog):
         self._setTimeFormat(self.tempFormat.GetValue())
 
         row += 1
-        link = wx.HyperlinkCtrl(
+        link = HyperlinkCtrl(
             panel, id=wx.ID_ANY,
             label=_("Learn more about formatting options"),
             url="http://docs.python.org/2/library/datetime.html#"

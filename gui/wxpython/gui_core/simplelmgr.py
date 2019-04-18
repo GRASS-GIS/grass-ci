@@ -35,7 +35,6 @@ from gui_core.wrap import CheckListBox, Menu
 from core.utils import GetLayerNameFromCmd
 from core.gcmd import GError
 from core.layerlist import LayerList
-from core.utils import _
 
 SIMPLE_LMGR_RASTER = 1
 SIMPLE_LMGR_VECTOR = 2
@@ -130,6 +129,10 @@ class SimpleLayerManager(wx.Panel):
         selected = self._checkList.GetSelections()
         for i, layer in enumerate(self._layerList):
             layer.Select(i in selected)
+
+    def UnInit(self):
+        """Needs to be called before destroying this window"""
+        self._auimgr.UnInit()
 
     def OnContextMenu(self, event):
         """Show context menu.

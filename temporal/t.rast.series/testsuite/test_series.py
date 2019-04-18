@@ -58,8 +58,8 @@ class TestSnapAbsoluteSTRDS(TestCase):
         self.assertModule("t.rast.series", input="A", method="average",
                           output="series_time_stamp", where="start_time > '2001-02-01'")
 
-        tinfo_string="""start_time=2001-02-01 00:00:00
-                        end_time=2001-05-01 00:00:00"""
+        tinfo_string="""start_time='2001-02-01 00:00:00'
+                        end_time='2001-05-01 00:00:00'"""
 
         info = SimpleModule("t.info", flags="g", type="raster", input="series_time_stamp")
         self.assertModuleKeyValue(module=info, reference=tinfo_string, precision=2, sep="=")
@@ -81,6 +81,22 @@ class TestSnapAbsoluteSTRDS(TestCase):
     def test_minimum(self):
         self.assertModule("t.rast.series", input="A", method="minimum",
                           output="series_minimum")
+
+        self.assertRasterMinMax(map="series_minimum", refmin=100, refmax=100,
+                                msg="Minimum must be 100")
+
+    def test_multi_stats(self):
+        self.assertModule("t.rast.series", input="A",
+                          method=["average", "maximum", "minimum"],
+                          output=["series_average", "series_maximum",
+                                  "series_minimum"],
+                          overwrite=True)
+
+        self.assertRasterMinMax(map="series_average", refmin=250, refmax=250,
+                                msg="Average must be 250")
+
+        self.assertRasterMinMax(map="series_maximum", refmin=400, refmax=400,
+                                msg="Maximum must be 400")
 
         self.assertRasterMinMax(map="series_minimum", refmin=100, refmax=100,
                                 msg="Minimum must be 100")

@@ -74,7 +74,7 @@ from core.gcmd import RunCommand, GError, GMessage, GWarning, GException
 from core.utils    import GetListOfLocations, GetListOfMapsets, \
     GetFormats, rasterFormatExtension, vectorFormatExtension
 from core.utils import GetSettingsPath, GetValidLayerName, ListSortLower
-from core.utils import GetVectorNumberOfLayers, _
+from core.utils import GetVectorNumberOfLayers
 from core.settings import UserSettings
 from core.debug import Debug
 from gui_core.vselect import VectorSelectBase
@@ -2456,7 +2456,7 @@ class CoordinatesSelect(Panel):
 
             coords = self._getCoords()
             if coords is not None:
-                for i in range(len(coords) / 2):
+                for i in range(len(coords) // 2):
                     i = i * 2
                     self.pointsToDraw.AddItem(
                         coords=(coords[i], coords[i + 1]))

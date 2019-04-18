@@ -33,7 +33,7 @@ from grass.script.task import cmdlist_to_tuple, cmdtuple_to_list
 from core import globalvar
 from core.debug import Debug
 from core.gcmd import GMessage, GWarning, GError, RunCommand
-from core.utils import GetSettingsPath, _
+from core.utils import GetSettingsPath
 from core.gconsole import CmdThread, GStderr, EVT_CMD_DONE, EVT_CMD_OUTPUT
 
 from gui_core.gselect import Select
@@ -311,7 +311,7 @@ class WSDialogBase(wx.Dialog):
     def OnSettingsChanged(self, data):
         """Update widgets according to chosen settings"""
         # data list: [server, username, password]
-        if len < 3:
+        if len(data) < 3:
             return
 
         self.server.SetValue(data[0])

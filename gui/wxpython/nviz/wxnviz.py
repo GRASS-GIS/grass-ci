@@ -58,7 +58,7 @@ except (ImportError, WindowsError) as e:
     print("wxnviz.py: {}".format(e), file=sys.stderr)
 
 from core.debug import Debug
-from core.utils import _, autoCropImageFromFile
+from core.utils import autoCropImageFromFile
 from core.gcmd import EncodeString, DecodeString
 from core.globalvar import wxPythonPhoenix
 from gui_core.wrap import Rect
@@ -836,7 +836,7 @@ class Nviz(object):
         else:
             nsurfs = c_int()
             surf_list = GS_get_surf_list(byref(nsurfs))
-            for i in xrange(nsurfs.value):
+            for i in range(nsurfs.value):
                 id = surf_list[i]
                 GS_set_wire_color(id, color)
 

@@ -34,7 +34,6 @@ from grass.script.utils import encode
 from gui_core.wrap import EmptyBitmap
 
 from core.gcmd import GException
-from core.utils import _
 
 
 class TemporalMode:
@@ -341,7 +340,7 @@ def layerListToCmdsMatrix(layerList):
         else:
             cmdsForComposition.append([layer.cmd] * count)
 
-    return zip(*cmdsForComposition)
+    return list(zip(*cmdsForComposition))
 
 
 def sampleCmdMatrixAndCreateNames(cmdMatrix, sampledSeries, regions):

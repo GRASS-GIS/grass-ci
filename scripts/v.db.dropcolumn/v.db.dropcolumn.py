@@ -43,10 +43,6 @@ import string
 import grass.script as grass
 from grass.exceptions import CalledModuleError
 
-# i18N
-import gettext
-gettext.install('grassmods', os.path.join(os.getenv("GISBASE"), 'locale'))
-
 
 def main():
     map = options['map']
@@ -101,7 +97,7 @@ def main():
 
             cmds = [
                 "BEGIN TRANSACTION",
-                "CREATE TEMPORARY TABLE ${table}_backup(${coldef})",
+                "CREATE TEMPORARY TABLE ${table}_backup (${coldef})",
                 "INSERT INTO ${table}_backup SELECT ${colnames} FROM ${table}",
                 "DROP TABLE ${table}",
                 "CREATE TABLE ${table}(${coldef})",

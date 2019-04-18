@@ -51,7 +51,6 @@ else:
 import wx.lib.scrolledpanel as scrolled
 
 from core import utils
-from core.utils import _
 from core.utils import cmp
 from core.gcmd import RunCommand, GError, GMessage, GWarning
 from gui_core.widgets import GenericValidator
@@ -1699,7 +1698,7 @@ class EPSGPage(TitledPage):
     def OnBrowseCodes(self, event, search=None):
         """Browse EPSG codes"""
         try:
-            self.epsgCodeDict = utils.ReadEpsgCodes(self.tfile.GetValue())
+            self.epsgCodeDict = utils.ReadEpsgCodes()
         except OpenError as e:
             GError(
                 parent=self,
@@ -1946,7 +1945,7 @@ class IAUPage(TitledPage):
     def OnBrowseCodes(self, event, search=None):
         """Browse IAU codes"""
         try:
-            self.epsgCodeDict = utils.ReadEpsgCodes(self.tfile.GetValue())
+            self.epsgCodeDict = utils.ReadEpsgCodes()
         except OpenError as e:
             GError(
                 parent=self,

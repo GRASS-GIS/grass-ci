@@ -45,7 +45,7 @@ from grass.exceptions import OpenError
 
 from core import globalvar
 from core.gcmd import RunCommand, GError
-from core.utils import ListOfMapsets, GetColorTables, ReadEpsgCodes, _
+from core.utils import ListOfMapsets, GetColorTables, ReadEpsgCodes
 from core.settings import UserSettings
 from core.globalvar import wxPythonPhoenix
 from gui_core.dialogs import SymbolDialog, DefaultFontDialog
@@ -1901,7 +1901,7 @@ class PreferencesDialog(PreferencesBaseDialog):
             self.winId['projection:statusbar:epsg'])
         wx.BeginBusyCursor()
         try:
-            self.epsgCodeDict = ReadEpsgCodes(path)
+            self.epsgCodeDict = ReadEpsgCodes()
         except OpenError as e:
             wx.EndBusyCursor()
             epsgCombo.SetItems([])

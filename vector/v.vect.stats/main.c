@@ -68,7 +68,10 @@ static int cmp_area(const void *pa, const void *pb)
     AREA_CAT *p1 = (AREA_CAT *) pa;
     AREA_CAT *p2 = (AREA_CAT *) pb;
 
-    return (p1->area_cat - p2->area_cat);
+    if (p1->area_cat < p2->area_cat)
+	return -1;
+
+    return (p1->area_cat > p2->area_cat);
 }
 
 int main(int argc, char *argv[])
@@ -441,7 +444,7 @@ int main(int argc, char *argv[])
 	    db_column_Ctype(Pdriver, PFi->table, point_column_opt->answer);
 
 	if (ctype != DB_C_TYPE_INT && ctype != DB_C_TYPE_DOUBLE)
-	    G_fatal_error(_("column for points vector must be numeric"));
+	    G_fatal_error(_("points_column <%s> of points vector <%s> must be numeric"), point_column_opt->answer, PFi->table);
 
 	db_CatValArray_init(&cvarr);
 	nrec = db_select_CatValArray(Pdriver, PFi->table, PFi->key,

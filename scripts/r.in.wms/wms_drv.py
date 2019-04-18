@@ -19,18 +19,13 @@ This program is free software under the GNU General Public License
 import socket
 import grass.script as grass
 
-# i18N
-import os
-import gettext
-gettext.install('grassmods', os.path.join(os.getenv("GISBASE"), 'locale'))
-
 from time import sleep
 
 try:
     from osgeo import gdal
     from osgeo import gdalconst
 except:
-    grass.fatal(_("Unable to load GDAL python bindings"))
+    grass.fatal(_("Unable to load GDAL Python bindings (requires package 'python-gdal' being installed)"))
 
 import numpy as Numeric
 Numeric.arrayrange = Numeric.arange
@@ -63,6 +58,7 @@ class WMSDrv(WMSBase):
         @return temp_map with downloaded data
         """
         grass.message(_("Downloading data from WMS server..."))
+        server_url = self.params["url"]
 
         if "?" in self.params["url"]:
             self.params["url"] += "&"
@@ -187,6 +183,8 @@ class WMSDrv(WMSBase):
                     grass.fatal(_("WMS server unknown error"))
 
             temp_tile_pct2rgb = None
+            if tile_dataset_info.RasterCount < 1:
+                grass.fatal(_("WMS server error: no band(s) received. Is server URL correct? <%s>") % server_url )
             if tile_dataset_info.RasterCount == 1 and \
                tile_dataset_info.GetRasterBand(1).GetRasterColorTable() is not None:
                 # expansion of color table into bands
