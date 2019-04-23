@@ -692,13 +692,13 @@ def install_extension(source, url, xmlurl):
             blist = install_extension_xml(xmlurl, mlist)
         if source == 'official' and len(installed_modules) > len(mlist):
             grass.message(_("Updating addons metadata file..."))
-            blist = install_inofficial_extension_xml(tmp_dir, installed_modules)
+            blist = install_private_extension_xml(tmp_dir, installed_modules)
         else:
-            grass.message(_("Updating inofficial addons metadata file..."))
+            grass.message(_("Updating private addons metadata file..."))
             if len(installed_modules) > 1:
-                blist = install_inofficial_extension_xml(tmp_dir, installed_modules)
+                blist = install_private_extension_xml(tmp_dir, installed_modules)
             else:
-                blist = install_inofficial_extension_xml(tmp_dir, mlist)
+                blist = install_private_extension_xml(tmp_dir, mlist)
 
         # the blist was used here, but it seems that it is the same as mlist
         for module in mlist:
@@ -924,9 +924,9 @@ def install_extension_xml(url, mlist):
     return bin_list
 
 
-def install_inofficial_extension_xml(url, mlist):
+def install_private_extension_xml(url, mlist):
     """Update XML files with metadata about installed modules and toolbox
-    of an inofficial addon
+    of an private addon
 
     """
     # TODO toolbox
