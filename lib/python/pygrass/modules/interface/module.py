@@ -8,8 +8,7 @@ from xml.etree.ElementTree import fromstring
 
 from grass.exceptions import CalledModuleError, GrassError, ParameterError
 from grass.script.core import Popen, PIPE, use_temp_region, del_temp_region
-from grass.script.utils import encode
-from grass.pygrass.utils import decode
+from grass.script.utils import encode, decode
 from .docstring import docstring_property
 from .parameter import Parameter
 from .flag import Flag
@@ -783,10 +782,8 @@ class Module(object):
             if self.stdin:
                 self.stdin = encode(self.stdin)
             stdout, stderr = self.popen.communicate(input=self.stdin)
-            stdout = decode(stdout)
-            stderr = decode(stderr)
-            self.outputs['stdout'].value = stdout if stdout else ''
-            self.outputs['stderr'].value = stderr if stderr else ''
+            self.outputs['stdout'].value = decode(stdout) if stdout else ''
+            self.outputs['stderr'].value = decode(stderr) if stderr else ''
             self.time = time.time() - self.start_time
 
             self._finished = True

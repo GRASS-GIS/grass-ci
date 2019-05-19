@@ -25,7 +25,6 @@
 /* a couple defines to simplify reading the function */
 #define MULTIPLY_LOOP(x,y,c,m) \
 do {\
-   int i; \
    for (i = 0; i < c; ++i) {\
        x[i] *= m; \
        y[i] *= m; \
@@ -34,7 +33,6 @@ do {\
 
 #define DIVIDE_LOOP(x,y,c,m) \
 do {\
-   int i; \
    for (i = 0; i < c; ++i) {\
        x[i] /= m; \
        y[i] /= m; \
@@ -92,16 +90,48 @@ int GPJ_init_transform(const struct pj_info *info_in,
     info_trans->pj = NULL;
     if (!info_trans->def) {
 	if (info_in->srid && info_out->pj && info_out->srid) {
+	    char *insrid, *outsrid;
+
+#if PROJ_VERSION_MAJOR >= 6
+	    /* PROJ6+: EPSG must uppercase EPSG */
+	    if (strncmp(info_in->srid, "epsg", 4) == 0)
+		insrid = G_store_upper(info_in->srid);
+	    else
+		insrid = G_store(info_in->srid);
+
+	    if (strncmp(info_out->srid, "epsg", 4) == 0)
+		outsrid = G_store_upper(info_out->srid);
+	    else
+		outsrid = G_store(info_out->srid);
+
+	    /* PROJ6+: enforce axis order easting, northing
+	     * +axis=enu (works with proj-4.8+) */
+
+#else
+	    /* PROJ5: EPSG must lowercase epsg */
+	    if (strncmp(info_in->srid, "EPSG", 4) == 0)
+		insrid = G_store_lower(info_in->srid);
+	    else
+		insrid = G_store(info_in->srid);
+
+	    if (strncmp(info_out->srid, "EPSG", 4) == 0)
+		outsrid = G_store_lower(info_out->srid);
+	    else
+		outsrid = G_store(info_out->srid);
+
+#endif
 	    /* ask PROJ for the best pipeline */
 	    info_trans->pj = proj_create_crs_to_crs(PJ_DEFAULT_CTX,
-	                                            info_in->srid,
-						    info_out->srid,
+	                                            insrid,
+						    outsrid,
 						    NULL);
 
 	    if (info_trans->pj == NULL) {
 		G_warning(_("proj_create_crs_to_crs() failed for '%s' and '%s'"),
-		          info_in->srid, info_out->srid);
+		          insrid, outsrid);
 	    }
+	    G_free(insrid);
+	    G_free(outsrid);
 #if PROJ_VERSION_MAJOR >= 6
 	    else {
 		const char *str = proj_as_proj_string(NULL, info_trans->pj,
@@ -113,7 +143,11 @@ int GPJ_init_transform(const struct pj_info *info_in,
 #endif
 	}
 	if (info_trans->pj == NULL) {
-	    if (info_out->pj != NULL && info_out->def != NULL)
+	    /* PROJ6+: enforce axis order easting, northing
+	     * +axis=enu (works with proj-4.8+) */
+	    /* PROJ6+: what should we do with +towgs ? 
+	     * +towgs works only if WGS84 is used as pivot datum on both sides */
+  	    if (info_out->pj != NULL && info_out->def != NULL)
 		G_asprintf(&(info_trans->def), "+proj=pipeline +step +inv %s +step %s",
 			   info_in->def, info_out->def);
 	    else
@@ -221,6 +255,9 @@ int GPJ_transform(const struct pj_info *info_in,
     /* prepare */
     if (in_is_ll) {
 	/* convert to radians */
+	/* PROJ 6: conversion to radians is not always needed:
+	 * if proj_angular_input(info_trans->pj, dir) == 1 
+	 * -> convert from degrees to radians */
 	c.lpzt.lam = (*x) / RAD_TO_DEG;
 	c.lpzt.phi = (*y) / RAD_TO_DEG;
 	c.lpzt.z = 0;
@@ -250,6 +287,9 @@ int GPJ_transform(const struct pj_info *info_in,
     /* output */
     if (out_is_ll) {
 	/* convert to degrees */
+	/* PROJ 6: conversion to radians is not always needed:
+	 * if proj_angular_output(info_trans->pj, dir) == 1 
+	 * -> convert from radians to degrees */
 	*x = c.lpzt.lam * RAD_TO_DEG;
 	*y = c.lpzt.phi * RAD_TO_DEG;
 	if (z)
@@ -681,9 +721,9 @@ int pj_do_transform(int count, double *x, double *y, double *h,
 		    const struct pj_info *info_in, const struct pj_info *info_out)
 {
     int ok;
+    int i;
     int has_h = 1;
 #ifdef HAVE_PROJ_H
-    int i;
     struct pj_info info_trans;
     PJ_COORD c;
 
@@ -776,8 +816,6 @@ int pj_do_transform(int count, double *x, double *y, double *h,
     METERS_out = info_out->meters;
 
     if (h == NULL) {
-	int i;
-
 	h = G_malloc(sizeof *h * count);
 	/* they say memset is only guaranteed for chars ;-( */
 	for (i = 0; i < count; ++i)
