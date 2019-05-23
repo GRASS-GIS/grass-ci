@@ -145,6 +145,13 @@ This program is free software under the GNU General Public License
 #% guisection: Map style
 #%end
 
+#%option
+#% key: proxy
+#% label: Http proxy only GDAL driver (GDAL_HTTP_PROXY)
+#% type: string
+#% description: Http proxy
+#%end
+
 #%option G_OPT_F_BIN_INPUT
 #% key: capfile
 #% required: no
@@ -227,6 +234,9 @@ def main():
         wms.GetCapabilities(options)
     else:
         from wms_base import GRASSImporter
+        if options['proxy']:
+            wms.setProxy(options['proxy'])
+
         options['region'] = GetRegionParams(options['region'])
         fetched_map = wms.GetMap(options, flags)
 
